@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import TrendingRow from '../pages/Home/TrendingRow';
-import AgreyFlixLoader from './AgreyFlixLoader';
+import { TrendingRowSkeleton } from './Skeletons';
 import { fetchTmdb } from '../utils/tmdb';
 
 export default function TrendingNowCarousel() {
@@ -64,11 +64,7 @@ export default function TrendingNowCarousel() {
   }, []);
 
   if (loading) {
-    return (
-      <section className="px-4 sm:px-6 md:px-12 relative group z-30 mb-10 min-h-[250px] flex items-center justify-center">
-        <AgreyFlixLoader />
-      </section>
-    );
+    return <TrendingRowSkeleton title="Trending Now" />;
   }
 
   if (items.length === 0) return null;

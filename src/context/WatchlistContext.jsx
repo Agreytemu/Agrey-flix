@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../firebase'; 
+import { supabaseService } from '../utils/supabaseService'; 
 
 const WatchlistContext = createContext();
 
@@ -28,9 +26,9 @@ export function WatchlistProvider({ children }) {
     }
   }, []);
 
-  // Sync with Firebase Auth and Firestore
+  // Sync with Supabase Auth
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = supabaseService.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
         setWatchlist([]);
@@ -40,30 +38,14 @@ export function WatchlistProvider({ children }) {
         return;
       }
 
-      // Listen to Firestore
-      const docRef = doc(db, 'users', currentUser.uid);
-      const unsubscribeSnapshot = onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const pWatchlist = data.watchlist || [];
-          setWatchlist(pWatchlist);
-          setWatchlistIds(new Set(pWatchlist.map(item => String(item.mediaId))));
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(pWatchlist));
-        } else {
-          setWatchlist([]);
-          setWatchlistIds(new Set());
-          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-        }
-        setReady(true);
-      }, (error) => {
-        console.error("Firestore watchlist sync error:", error);
-        setReady(true);
-      });
-
-      return () => unsubscribeSnapshot();
+      const pWatchlist = currentUser.watchlist || [];
+      setWatchlist(pWatchlist);
+      setWatchlistIds(new Set(pWatchlist.map(item => String(item.mediaId))));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(pWatchlist));
+      setReady(true);
     });
 
-    return () => unsubscribeAuth();
+    return () => unsubscribe();
   }, []);
 
   const toggleWatchlist = useCallback(async (mediaItem, onNeedAuth) => {
@@ -92,12 +74,11 @@ export function WatchlistProvider({ children }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newWatchlist));
     }, 500);
 
-    // Update Firestore
+    // Update Supabase
     try {
-      const docRef = doc(db, 'users', user.uid);
-      await setDoc(docRef, { watchlist: newWatchlist }, { merge: true });
+      await supabaseService.updateWatchlist(newWatchlist);
     } catch (error) {
-      console.error("Error updating watchlist in Firestore", error);
+      console.error("Error updating watchlist in Supabase", error);
     }
   }, [user, watchlist, watchlistIds]);
 

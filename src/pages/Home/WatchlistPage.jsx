@@ -80,10 +80,11 @@ export default function WatchlistPage() {
             <motion.div variants={{ hidden: { opacity: 0, scale: 0.9 }, show: { opacity: 1, scale: 1 } }} key={item.mediaId}>
               <ContentCard 
                 title={item.title}
-                poster={item.poster_path ? (item.poster_path.includes('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`) : 'https://placehold.co/400x600/1e293b/a5b4fc?text=No+Poster'}
+                poster={item.poster_path ? (item.poster_path.includes('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`) : null}
+                posterPath={item.poster_path || null}
                 rating={item.vote_average}
                 releaseDate={item.release_date}
-                mediaType={item.type}
+                mediaType={item.type || 'movie'}
                 mediaId={item.mediaId}
                 isWatchlistPage={true}
               />

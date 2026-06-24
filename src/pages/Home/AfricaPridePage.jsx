@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ContentCard from './ContentCard';
-import AgreyFlixLoader from '../../components/AgreyFlixLoader';
+import { MovieGridSkeleton } from '../../components/Skeletons';
 import TMDBErrorDiagnostics from '../../components/TMDBErrorDiagnostics';
 import { fetchTmdb } from '../../utils/tmdb';
 import { FaFilter, FaGlobeAfrica } from 'react-icons/fa';
@@ -143,9 +143,7 @@ export default function AfricaPridePage() {
       </div>
       
       {loading ? (
-        <div className="flex justify-center items-center w-full min-h-[400px]">
-          <AgreyFlixLoader />
-        </div>
+        <MovieGridSkeleton count={12} />
       ) : (
         <>
           {movies.length === 0 ? (

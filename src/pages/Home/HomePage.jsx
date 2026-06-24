@@ -1,14 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import HeroBanner from './HeroBanner';
+import { useProfile } from '../../context/ProfileContext';
+import { FaCheckCircle, FaCalendarAlt } from 'react-icons/fa';
 import TrendingRow from './TrendingRow';
 import ContinueWatchingRow_2 from './ContinueWatchingRow_2';
 import TrendingNowCarousel from '../../components/TrendingNowCarousel';
 import TMDBErrorDiagnostics from '../../components/TMDBErrorDiagnostics';
 import { fetchTmdb } from '../../utils/tmdb';
 import { motion } from 'framer-motion';
-import AgreyFlixLoader from '../../components/AgreyFlixLoader';
+import { HomePageSkeleton } from '../../components/Skeletons';
 
 export default function HomePage() {
+  const { profile } = useProfile();
+  
+  const greeting = (() => {
+    const hr = new Date().getHours();
+    if (hr < 12) return 'Good morning';
+    if (hr < 18) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
+  const userName = profile?.displayName || profile?.email?.split('@')[0] || 'Subscriber';
+
+  const joinedDate = (() => {
+    const dateStr = profile?.created_at;
+    if (!dateStr) return 'June 2026';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    } catch (e) {
+      return 'June 2026';
+    }
+  })();
+
   const [trending, setTrending] = useState([]);
   const [popularMovies, setPopularMovies] = useState([]);
   const [nowPlaying, setNowPlaying] = useState([]);
@@ -249,11 +273,7 @@ export default function HomePage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0A0D14] flex items-center justify-center">
-        <AgreyFlixLoader />
-      </div>
-    );
+    return <HomePageSkeleton />;
   }
 
   if (error) {
@@ -267,6 +287,43 @@ export default function HomePage() {
       exit={{ opacity: 0 }} 
       className="pb-20"
     >
+      {/* Premium Welcome Banner Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="pt-20 md:pt-8 pb-4 px-4 md:px-16"
+      >
+        <div className="relative overflow-hidden bg-gradient-to-r from-zinc-950/95 to-[#0D0D0D]/95 border border-white/5 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+          {/* Accent ambient glow effects matching the theme */}
+          <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/10 rounded-full blur-[90px] pointer-events-none -mr-16 -mt-16" />
+          <div className="absolute bottom-0 left-0 w-80 h-80 bg-zinc-700/5 rounded-full blur-[90px] pointer-events-none -ml-16 -mb-16" />
+          
+          <div className="relative z-10 flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-red-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+              AgreyFlix Streaming Experience
+            </div>
+            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2">
+              {greeting}, {userName}! <FaCheckCircle className="text-emerald-500 text-lg md:text-2xl shrink-0" title="Verified Account" />
+            </h1>
+            <p className="text-zinc-400 text-sm md:text-base font-semibold max-w-2xl leading-relaxed">
+              We hope you enjoy streaming all the latest blockbuster movies, trending TV series, and Swahili content in crystal-clear HD. Sit back and have an exceptional viewing session!
+            </p>
+          </div>
+          
+          {/* Sign up "together since" badge */}
+          <div className="relative z-10 shrink-0 self-start md:self-center bg-zinc-900/60 border border-white/5 rounded-2xl p-4 flex flex-col items-start gap-1 backdrop-blur-sm">
+            <span className="text-[10px] font-black uppercase text-zinc-500 tracking-wider flex items-center gap-1.5">
+              <FaCalendarAlt className="text-red-500" /> Member Milestone
+            </span>
+            <span className="text-xs md:text-sm font-black text-white">
+              Together since <span className="text-red-500">{joinedDate}</span>
+            </span>
+          </div>
+        </div>
+      </motion.div>
+
       <HeroBanner />
       
       <motion.div 

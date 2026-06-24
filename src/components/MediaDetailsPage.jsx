@@ -406,6 +406,10 @@ ${appUrl}`;
 
   // Trigger content stream extraction from server
   const handleWatchStream = async (targetSeason = null, targetEpisode = null) => {
+    if (!user) {
+      window.dispatchEvent(new Event('openAuthModal'));
+      return;
+    }
     const isTv = type === 'tv';
     const sNum = isTv ? (targetSeason !== null ? targetSeason : activeSeason) : 1;
     const eNum = isTv ? (targetEpisode !== null ? targetEpisode : activeEpisode) : 1;
@@ -463,6 +467,10 @@ ${appUrl}`;
   };
 
   const handleDownload = () => {
+    if (!user) {
+      window.dispatchEvent(new Event('openAuthModal'));
+      return;
+    }
     navigate(`/download/${type}/${slug}?season=${activeSeason}&episode=${activeEpisode}`);
   };
 
@@ -567,6 +575,8 @@ ${appUrl}`;
                   sourceType={activeStreamSource}
                   isMaximized={playerMaximized}
                   onToggleMaximize={() => setPlayerMaximized(!playerMaximized)}
+                  backdropPath={details?.backdrop_path || media?.backdrop_path || media?.backdropPath}
+                  slug={slug}
                 />
               </div>
             ) : embedActiveUrl ? (

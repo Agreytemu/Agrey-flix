@@ -22,6 +22,7 @@ import AuthActionPage from './pages/Home/AuthActionPage';
 import PreferencesSetup from './pages/Home/PreferencesSetup';
 import OnboardingGuard from './components/OnboardingGuard';
 import DownloadPage from './pages/Home/DownloadPage';
+import AdminPage from './pages/Home/AdminPage';
 
 function App() {
   return (
@@ -47,6 +48,7 @@ function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/person/:id/:slug" element={<PersonPage />} />
             <Route path="/watchlist" element={<WatchlistPage />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="/best-artists" element={<BestArtistsPage />} />
             <Route path="/upcoming" element={<UpcomingMoviesPage />} />
             <Route path="/africa-pride" element={<AfricaPridePage />} />

@@ -30,6 +30,7 @@ const ContentCard = memo(({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [wlLoading, setWlLoading] = useState(false);
+  const [lazyPoster, setLazyPoster] = useState(null);
   
   const navigate = useNavigate();
 
@@ -55,7 +56,7 @@ const ContentCard = memo(({
         mediaId,
         type: mediaType || 'movie',
         title,
-        poster_path: posterPath || null,
+        poster_path: poster || posterPath || null,
         vote_average: voteAverage || rating || 0,
         release_date: releaseDate || null,
       }, onNeedAuth);
@@ -84,7 +85,8 @@ const ContentCard = memo(({
     }
   }, [handleCardClick]);
 
-  const src = imageError ? placeholderImage : poster;
+  const displayPoster = poster || lazyPoster || (posterPath ? (posterPath.includes('http') ? posterPath : `https://image.tmdb.org/t/p/w500${posterPath}`) : null);
+  const src = imageError ? placeholderImage : (displayPoster || placeholderImage);
   const year = releaseDate ? new Date(releaseDate).getFullYear() : null;
   const ratingNum = rating ? Math.round(rating * 10) : null;
   const ratingColor = rating >= 7 ? 'text-green-400' : rating >= 5 ? 'text-yellow-400' : 'text-red-400';
@@ -162,6 +164,24 @@ const ContentCard = memo(({
       return () => { cancelled = true; };
     }
   }, [showTrailer, mediaId, mediaType, trailerKey, trailerError]);
+
+  useEffect(() => {
+    if (!poster && !posterPath && mediaId && mediaType) {
+      let cancelled = false;
+      fetchTmdb(`/${mediaType}/${mediaId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (cancelled) return;
+          if (data && data.poster_path) {
+            setLazyPoster(`https://image.tmdb.org/t/p/w500${data.poster_path}`);
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to lazy load poster from TMDB:', err);
+        });
+      return () => { cancelled = true; };
+    }
+  }, [poster, posterPath, mediaId, mediaType]);
 
   return (
     <motion.div

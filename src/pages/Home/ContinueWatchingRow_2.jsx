@@ -1,8 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaPlay, FaTimes } from 'react-icons/fa';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
+import { supabaseService } from '../../utils/supabaseService';
 
 const STORAGE_KEY = 'weflix_continue_watching_cache';
 
@@ -74,7 +73,7 @@ export default function ContinueWatchingRow_2() {
   }, []);
 
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
+    const unsubscribe = supabaseService.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
         setContinueWatching([]);
@@ -82,20 +81,12 @@ export default function ContinueWatchingRow_2() {
         return;
       }
 
-      const docRef = doc(db, 'users', currentUser.uid);
-      const unsubscribeSnap = onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const cwData = data.continueWatching || [];
-          setContinueWatching(cwData);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(cwData));
-        }
-      });
-
-      return () => unsubscribeSnap();
+      const cwData = currentUser.continueWatching || [];
+      setContinueWatching(cwData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cwData));
     });
 
-    return () => unsubscribeAuth();
+    return () => unsubscribe();
   }, []);
 
   const onMouseDown = useCallback((e) => {
@@ -151,8 +142,7 @@ export default function ContinueWatchingRow_2() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newCwData));
     
     try {
-      const docRef = doc(db, 'users', user.uid);
-      await setDoc(docRef, { continueWatching: newCwData }, { merge: true });
+      await supabaseService.updateContinueWatching(newCwData);
     } catch (err) {
       console.error('Failed to remove from continue watching', err);
     }

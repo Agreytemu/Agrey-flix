@@ -5,6 +5,7 @@ import {
   FaExpand, FaCompress, FaUndo, FaRedo, FaCog, FaClosedCaptioning, FaTimes, FaBolt 
 } from 'react-icons/fa';
 import AgreyFlixLoader from './AgreyFlixLoader';
+import { supabaseService } from '../utils/supabaseService';
 
 export default function VideoPlayer({ 
   src, 
@@ -18,6 +19,8 @@ export default function VideoPlayer({
   sourceType,
   isMaximized,
   onToggleMaximize,
+  backdropPath,
+  slug,
 }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -143,27 +146,35 @@ export default function VideoPlayer({
         list = list.filter(item => String(item.mediaId) !== String(mediaId));
         
         // Push as first item (limit to 12)
-        list.unshift({
-          mediaId: String(mediaId),
-          type,
-          title,
-          subTitle,
-          season,
-          episode,
-          currentTime,
-          duration,
-          progress: (currentTime / duration) * 100,
-          updatedAt: Date.now(),
-        });
+        const updatedList = [
+          {
+            mediaId: String(mediaId),
+            type,
+            title,
+            subTitle,
+            slug: slug || String(mediaId),
+            backdrop_path: backdropPath || null,
+            progress: (currentTime / duration) * 100,
+            lastWatchedEpisode: type === 'tv' ? { season: Number(season || 1), episode: Number(episode || 1) } : null,
+            updatedAt: Date.now(),
+          },
+          ...list
+        ].slice(0, 12);
 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 12)));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
+
+        // Sync with Supabase if logged in
+        const user = supabaseService.getCurrentUser();
+        if (user) {
+          supabaseService.updateContinueWatching(updatedList);
+        }
       } catch (err) {
         console.error('Failed to update continue watching progress:', err);
       }
     }, 5000); // Debounce saves to local storage every 5 seconds
 
     return () => clearTimeout(saveTimer);
-  }, [currentTime, duration, mediaId, type, title, subTitle, season, episode]);
+  }, [currentTime, duration, mediaId, type, title, subTitle, season, episode, backdropPath, slug]);
 
   // 2. Play/Pause Handlers
   const handleTogglePlay = () => {

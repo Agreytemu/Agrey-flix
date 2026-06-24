@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ContentCard from './ContentCard';
 import { fetchTmdb } from '../../utils/tmdb';
-import { FaSearch, FaGamepad, FaFilm, FaTv } from 'react-icons/fa';
+import { FaSearch, FaGamepad, FaFilm, FaTv, FaHistory, FaTimes } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import AgreyFlixLoader from '../../components/AgreyFlixLoader';
 
@@ -10,6 +10,44 @@ export default function SearchPage() {
   const [results, setResults] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]);
+
+  // Load recent searches from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('agreyflix_recent_searches');
+    if (saved) {
+      try {
+        setRecentSearches(JSON.parse(saved));
+      } catch (e) {
+        console.error("Error parsing recent searches:", e);
+      }
+    }
+  }, []);
+
+  // Stable callback to add query to recent searches
+  const addRecentSearch = React.useCallback((searchQuery) => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed || trimmed.length < 2) return;
+    setRecentSearches(prev => {
+      const filtered = prev.filter(q => q.toLowerCase() !== trimmed.toLowerCase());
+      const updated = [trimmed, ...filtered].slice(0, 8);
+      localStorage.setItem('agreyflix_recent_searches', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const removeRecentSearch = (indexToRemove) => {
+    setRecentSearches(prev => {
+      const updated = prev.filter((_, i) => i !== indexToRemove);
+      localStorage.setItem('agreyflix_recent_searches', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const clearAllRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem('agreyflix_recent_searches');
+  };
 
   // Load suggestions on mount
   useEffect(() => {
@@ -65,6 +103,10 @@ export default function SearchPage() {
                 poster_path: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
               }));
             setResults(formatted);
+            // Auto persist successful search queries
+            if (formatted.length > 0) {
+              addRecentSearch(query.trim());
+            }
           }
         }
       } catch (err) {
@@ -78,7 +120,7 @@ export default function SearchPage() {
       clearTimeout(delayDebounceFn);
       cancelled = true;
     };
-  }, [query]);
+  }, [query, addRecentSearch]);
 
   const displayedItems = query ? results : suggestions;
 
@@ -99,6 +141,11 @@ export default function SearchPage() {
             type="text" 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && query.trim()) {
+                addRecentSearch(query.trim());
+              }
+            }}
             placeholder="Search for movies, TV series, documentaries..."
             className="w-full bg-[#0d1117] border border-white/10 rounded-full py-5 pl-16 pr-6 text-white text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all font-semibold shadow-2xl"
             autoFocus
@@ -125,14 +172,54 @@ export default function SearchPage() {
           
           {!query && (
             <div className="mb-10 animate-fade-in">
+              {/* Recent Searches section */}
+              {recentSearches.length > 0 && (
+                <div className="mb-10">
+                  <h2 className="text-2xl font-bold text-white mb-6 border-l-4 border-red-600 pl-4 flex items-center justify-between">
+                    <span className="flex items-center gap-3">
+                      <FaHistory className="text-red-500 text-xl" />
+                      Recent Searches
+                    </span>
+                    <button 
+                      onClick={clearAllRecentSearches}
+                      className="text-xs text-red-500 hover:text-red-400 font-black tracking-widest uppercase transition-colors"
+                    >
+                      CLEAR ALL
+                    </button>
+                  </h2>
+                  <div className="flex flex-wrap gap-2.5 bg-black/20 p-4 border border-white/5 rounded-2xl">
+                    {recentSearches.map((term, idx) => (
+                      <div 
+                        key={term + idx}
+                        className="group flex items-center gap-2 px-4 py-2 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-full text-xs font-black tracking-wider transition-all border border-white/5 hover:border-white/15"
+                      >
+                        <button
+                          onClick={() => setQuery(term)}
+                          className="text-left font-black tracking-wider"
+                        >
+                          {term}
+                        </button>
+                        <button
+                          onClick={() => removeRecentSearch(idx)}
+                          className="text-zinc-500 hover:text-red-500 p-0.5 rounded-full hover:bg-white/5 transition-all"
+                          title="Remove search"
+                        >
+                          <FaTimes size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <h2 className="text-2xl font-bold text-white mb-6 border-l-4 border-red-600 pl-4 flex items-center justify-between">
                 <span>Popular Categories</span>
                 <span className="text-xs text-zinc-500 uppercase font-black tracking-widest hidden sm:inline">QUICK SEARCH</span>
               </h2>
               <div className="flex flex-wrap gap-3 mb-8">
-                 <button onClick={() => setQuery('Action')} className="flex items-center gap-2 bg-[#0d1017] hover:bg-red-950/25 border border-white/5 py-3.5 px-6 rounded-xl font-extrabold text-xs tracking-wider transition-all hover:border-red-500/30 text-white shadow-md active:scale-95"><FaFilm className="text-red-500" /> BLOCKBUSTER MOVIES</button>
-                 <button onClick={() => setQuery('Comedy')} className="flex items-center gap-2 bg-[#0d1017] hover:bg-purple-950/25 border border-white/5 py-3.5 px-6 rounded-xl font-extrabold text-xs tracking-wider transition-all hover:border-purple-500/30 text-white shadow-md active:scale-95"><FaTv className="text-purple-500" /> BINGE-WORTHY SHOWS</button>
-                 <button onClick={() => setQuery('Animation')} className="flex items-center gap-2 bg-[#0d1017] hover:bg-emerald-950/25 border border-white/5 py-3.5 px-6 rounded-xl font-extrabold text-xs tracking-wider transition-all hover:border-emerald-500/30 text-white shadow-md active:scale-95"><FaGamepad className="text-green-500" /> ANIME & DONGHUA</button>
+                 <button onClick={() => { setQuery('Action'); addRecentSearch('Action'); }} className="flex items-center gap-2 bg-[#0d1017] hover:bg-red-950/25 border border-white/5 py-3.5 px-6 rounded-xl font-extrabold text-xs tracking-wider transition-all hover:border-red-500/30 text-white shadow-md active:scale-95"><FaFilm className="text-red-500" /> BLOCKBUSTER MOVIES</button>
+                 <button onClick={() => { setQuery('Comedy'); addRecentSearch('Comedy'); }} className="flex items-center gap-2 bg-[#0d1017] hover:bg-purple-950/25 border border-white/5 py-3.5 px-6 rounded-xl font-extrabold text-xs tracking-wider transition-all hover:border-purple-500/30 text-white shadow-md active:scale-95"><FaTv className="text-purple-500" /> BINGE-WORTHY SHOWS</button>
+                 <button onClick={() => { setQuery('Animation'); addRecentSearch('Animation'); }} className="flex items-center gap-2 bg-[#0d1017] hover:bg-emerald-950/25 border border-white/5 py-3.5 px-6 rounded-xl font-extrabold text-xs tracking-wider transition-all hover:border-emerald-500/30 text-white shadow-md active:scale-95"><FaGamepad className="text-green-500" /> ANIME & DONGHUA</button>
               </div>
 
               <h2 className="text-2xl font-bold text-white mb-6 border-l-4 border-red-600 pl-4 flex items-center justify-between">
@@ -143,7 +230,7 @@ export default function SearchPage() {
                  {['Bongo', 'Hollywood', 'Avengers', 'Nigerian', 'Spider-Man', 'Animated', 'Trending Series', 'Action Heavy', 'Pedro Pascal'].map((tag) => (
                    <button
                      key={tag}
-                     onClick={() => setQuery(tag)}
+                     onClick={() => { setQuery(tag); addRecentSearch(tag); }}
                      className="px-4 py-2 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-full text-xs font-black tracking-wider transition-all active:scale-95 border border-white/5 hover:border-white/15"
                    >
                      #{tag.toUpperCase()}

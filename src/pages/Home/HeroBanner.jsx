@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaPlay, FaInfoCircle } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import AgreyFlixLoader from '../../components/AgreyFlixLoader';
+import { HeroBannerSkeleton } from '../../components/Skeletons';
 import { fetchTmdb } from '../../utils/tmdb';
 
 const GENRE_MAP = {
@@ -53,11 +53,7 @@ export default function HeroBanner() {
   }, [items.length]);
 
   if (loading) {
-    return (
-      <div className="w-full h-[85vh] sm:h-[90vh] bg-[#111] flex items-center justify-center">
-        <AgreyFlixLoader />
-      </div>
-    );
+    return <HeroBannerSkeleton />;
   }
 
   if (items.length === 0) return null;

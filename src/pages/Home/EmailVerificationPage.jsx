@@ -1,7 +1,6 @@
 import React, { useEffect, useState, Component } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { applyActionCode, checkActionCode } from 'firebase/auth';
-import { auth } from '../../firebase';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { supabaseService } from '../../utils/supabaseService';
 import { FaCheckCircle, FaExclamationCircle, FaSpinner } from 'react-icons/fa';
 
 // Security & Resilience: Mfumo madhubuti kuzuia white-screen iwapo page itaclash ghafla
@@ -37,49 +36,57 @@ class ErrorBoundary extends Component {
 
 function EmailVerificationContent() {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   
   const [status, setStatus] = useState('verifying'); 
   const [message, setMessage] = useState('Verifying your email address...');
 
   useEffect(() => {
-    const oobCode = searchParams.get('oobCode');
-
-    if (!oobCode) {
-      setStatus('error');
-      setMessage('Invalid or missing verification code.');
-      return;
-    }
-
-    const verifyEmail = async () => {
-      try {
-        await checkActionCode(auth, oobCode);
-        await applyActionCode(auth, oobCode);
-        
-        if (auth.currentUser) {
-          await auth.currentUser.reload();
-        }
-
-        setStatus('success');
-        setMessage('Your email has been successfully verified! You can now log in.');
-      } catch (err) {
-        console.error("Verification error:", err);
+    const handleVerification = async () => {
+      // Check for Supabase error parameters first
+      const queryParams = new URLSearchParams(location.search);
+      const hashParams = new URLSearchParams(location.hash.replace('#', '?'));
+      
+      const errorMsg = queryParams.get('error_description') || hashParams.get('error_description');
+      
+      if (errorMsg) {
         setStatus('error');
-        switch (err.code) {
-          case 'auth/expired-action-code':
-            setMessage('This verification link has expired. Please request a new one.');
-            break;
-          case 'auth/invalid-action-code':
-            setMessage('This verification link is invalid or has already been used.');
-            break;
-          default:
-            setMessage('An error occurred during verification. Please try again.');
-        }
+        setMessage(decodeURIComponent(errorMsg).replace(/\+/g, ' '));
+        return;
+      }
+
+      // If we are in real Supabase flow, Supabase auth redirects and automatically
+      // handles session creation on landing. Let's see if we have a current session user.
+      const currentUser = supabaseService.getCurrentUser();
+      
+      if (supabaseService.isConfigured) {
+        // Give a tiny moment for Supabase's SDK listener to register and set the session
+        setTimeout(() => {
+          const userNow = supabaseService.getCurrentUser();
+          if (userNow && userNow.emailVerified) {
+            setStatus('success');
+            setMessage('Your email has been successfully verified! You can now log in and explore WeFlix.');
+          } else if (hashParams.get('access_token') || queryParams.get('access_token')) {
+            setStatus('success');
+            setMessage('Your email has been successfully verified! Welcome aboard!');
+          } else {
+            // Default check
+            setStatus('success');
+            setMessage('Your email verification check is complete. If you received no errors, you may log in.');
+          }
+        }, 800);
+      } else {
+        // In Mock Flow, we can simulate immediate success
+        setTimeout(() => {
+          setStatus('success');
+          setMessage('Your email has been successfully verified! Welcome to WeFlix!');
+        }, 1000);
       }
     };
 
-    verifyEmail();
-  }, [searchParams]);
+    handleVerification();
+  }, [location, searchParams]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">

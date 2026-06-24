@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ContentCard from '../ContentCard';
-import AgreyFlixLoader from '../../../components/AgreyFlixLoader';
+import { MovieGridSkeleton } from '../../../components/Skeletons';
 import TMDBErrorDiagnostics from '../../../components/TMDBErrorDiagnostics';
 import { fetchTmdb } from '../../../utils/tmdb';
 import { FaFilter } from 'react-icons/fa';
@@ -101,9 +101,7 @@ export default function Movie() {
       </div>
       
       {loading ? (
-        <div className="flex justify-center items-center w-full min-h-[400px]">
-          <AgreyFlixLoader />
-        </div>
+        <MovieGridSkeleton count={12} />
       ) : (
         <motion.div 
           initial="hidden" 
