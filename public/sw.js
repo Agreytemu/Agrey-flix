@@ -3,8 +3,7 @@ const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  'https://img.icons8.com/color/192/clapperboard.png',
-  'https://img.icons8.com/color/512/clapperboard.png'
+  '/app_icon.jpg'
 ];
 
 // Install Event - Pre-cache critical application assets
@@ -92,7 +91,7 @@ self.addEventListener('fetch', (event) => {
         // Safe fallback for images when completely offline
         if (request.destination === 'image') {
           // Can return a generic placeholder or the default cache icon
-          return caches.match('https://img.icons8.com/color/192/clapperboard.png');
+          return caches.match('/app_icon.jpg');
         }
         return Promise.reject(err);
       });
