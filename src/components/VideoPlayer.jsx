@@ -40,6 +40,42 @@ export default function VideoPlayer({
 
   const controlsTimeoutRef = useRef(null);
 
+  // Issue reporting states
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportIssueType, setReportIssueType] = useState('broken_video');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportEmail, setReportEmail] = useState('');
+  const [reportSuccess, setReportSuccess] = useState('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  const handleSubmitReport = async (e) => {
+    e.preventDefault();
+    setIsSubmittingReport(true);
+    setReportSuccess('');
+    try {
+      await supabaseService.createReport({
+        title: title || 'Unknown Title',
+        mediaId: mediaId || '',
+        type: type || 'movie',
+        issueType: reportIssueType,
+        details: reportDetails,
+        reporterEmail: reportEmail || 'anonymous@weflix.com'
+      });
+      setReportSuccess('Asante! Ripoti yako imewasilishwa kwa usalama.');
+      setReportDetails('');
+      setReportEmail('');
+      setTimeout(() => {
+        setShowReportModal(false);
+        setReportSuccess('');
+      }, 1800);
+    } catch (err) {
+      console.error(err);
+      alert('Imeshindwa kutuma ripoti. Tafadhali jaribu tena.');
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   // 1. Initialize HLS or Native Player
   useEffect(() => {
     const video = videoRef.current;
@@ -406,6 +442,17 @@ export default function VideoPlayer({
               </p>
             )}
           </div>
+
+          {/* REPORT ISSUE BUTTON */}
+          <button 
+            onClick={() => setShowReportModal(true)}
+            className="w-10 h-10 rounded-full bg-black/60 hover:bg-black text-white hover:text-red-500 flex items-center justify-center border border-white/20 transition-all active:scale-95 shadow-lg shrink-0 ml-auto"
+            title="Ripoti tatizo (Report Stream Issue)"
+          >
+            <svg className="w-5 h-5 fill-current" viewBox="0 0 20 20">
+              <path d="M10 20a10 10 0 1 1 0-20 10 10 0 0 1 0 20zm0-2a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-1-7.5V6h2v4.5H9zm0 5v-2h2v2H9z" />
+            </svg>
+          </button>
         </div>
 
         {/* MIDDLE CONTROLS (QUICK SKIP BUTTONS OVERLAY ON HOVER) */}
@@ -525,6 +572,78 @@ export default function VideoPlayer({
           </div>
         </div>
       </div>
+
+      {/* REPORT ISSUE MODAL WINDOW */}
+      {showReportModal && (
+        <div className="absolute inset-0 bg-black/95 flex items-center justify-center p-4 z-50 animate-fade-in select-text">
+          <div className="bg-[#0f1117] border border-white/10 max-w-sm w-full rounded-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center pb-2.5 border-b border-white/10">
+              <h3 className="font-black text-sm tracking-widest text-white uppercase">RIPOTI TATIZO LA VIDEO</h3>
+              <button 
+                onClick={() => setShowReportModal(false)}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                <FaTimes size={14} />
+              </button>
+            </div>
+
+            {reportSuccess ? (
+              <div className="py-6 text-center text-green-400 text-xs font-bold leading-relaxed">
+                {reportSuccess}
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitReport} className="space-y-4 text-left">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-zinc-500 tracking-wider mb-1.5">Tatizo Lenyewe (Issue Type)</label>
+                  <select 
+                    value={reportIssueType}
+                    onChange={(e) => setReportIssueType(e.target.value)}
+                    className="w-full bg-black border border-white/10 text-xs text-zinc-300 rounded-lg p-2.5 outline-none"
+                  >
+                    <option value="broken_video">Video Haichezi (Broken Video)</option>
+                    <option value="subtitle_problem">Tafsiri / Subtitles (Subtitles Error)</option>
+                    <option value="wrong_content">Video Sio Sahihi (Wrong Content)</option>
+                    <option value="streaming_error">Inagota / Inabuff sana (Buffering Problem)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-zinc-500 tracking-wider mb-1.5">Barua Pepe Yako (Your Email)</label>
+                  <input 
+                    type="email" 
+                    placeholder="Weka email yako hapa..."
+                    value={reportEmail}
+                    onChange={(e) => setReportEmail(e.target.value)}
+                    className="w-full bg-black border border-white/10 text-xs text-white rounded-lg p-2.5 outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-zinc-500 tracking-wider mb-1.5">Maelezo Kamili (Additional Details)</label>
+                  <textarea 
+                    rows="3"
+                    placeholder="Weka maelezo ya kina (k.m. inakata dakika ya 15)..."
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                    className="w-full bg-black border border-white/10 text-xs text-white rounded-lg p-2.5 outline-none resize-none"
+                    required
+                  />
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={isSubmittingReport}
+                  className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black uppercase text-[10px] tracking-widest py-3 rounded-lg transition-all"
+                >
+                  {isSubmittingReport ? 'Inatuma...' : 'Tuma Ripoti (Submit)'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -1,6 +1,6 @@
 {
   "name": "AGREY-PLAYER",
-  "description": "A modern movie and TV show streaming discovery app built with React, TMDB API, and Firebase.",
-  "requestFramePermissions": [],
+  "description": "A high-fidelity React streaming catalog and administrator command center, integrated with TMDB Metadata and VidSrc stream routing.",
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

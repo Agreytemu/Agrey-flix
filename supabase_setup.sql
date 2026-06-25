@@ -119,3 +119,98 @@ CREATE POLICY "Allow admin delete access to notifications" ON public.notificatio
     )
   );
 
+
+-- 11. Create the public reports table
+CREATE TABLE IF NOT EXISTS public.reports (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  media_id TEXT,
+  type TEXT,
+  issue_type TEXT,
+  details TEXT,
+  reporter_email TEXT,
+  status TEXT DEFAULT 'pending',
+  admin_response TEXT DEFAULT '',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 12. Enable Row Level Security (RLS) on reports table
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+
+-- 13. Create RLS Policies for reports
+-- Allow anyone to insert reports
+DROP POLICY IF EXISTS "Allow anyone to insert reports" ON public.reports;
+CREATE POLICY "Allow anyone to insert reports" ON public.reports
+  FOR INSERT
+  WITH CHECK (true);
+
+-- Allow public read access to reports (for admins to view, or simple listing)
+DROP POLICY IF EXISTS "Allow public read access to reports" ON public.reports;
+CREATE POLICY "Allow public read access to reports" ON public.reports
+  FOR SELECT
+  USING (true);
+
+-- Allow only admins to update reports
+DROP POLICY IF EXISTS "Allow admin update access to reports" ON public.reports;
+CREATE POLICY "Allow admin update access to reports" ON public.reports
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE profiles.id = auth.uid() AND profiles.is_admin = 1
+    )
+  );
+
+-- Allow only admins to delete reports
+DROP POLICY IF EXISTS "Allow admin delete access to reports" ON public.reports;
+CREATE POLICY "Allow admin delete access to reports" ON public.reports
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE profiles.id = auth.uid() AND profiles.is_admin = 1
+    )
+  );
+
+
+-- 14. Create the public servers table
+CREATE TABLE IF NOT EXISTS public.servers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  status TEXT DEFAULT 'Active (100% SLA)',
+  latency INTEGER DEFAULT 0,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 15. Enable Row Level Security (RLS) on servers table
+ALTER TABLE public.servers ENABLE ROW LEVEL SECURITY;
+
+-- 16. Create RLS Policies for servers
+-- Allow public read access to servers
+DROP POLICY IF EXISTS "Allow public read access to servers" ON public.servers;
+CREATE POLICY "Allow public read access to servers" ON public.servers
+  FOR SELECT
+  USING (true);
+
+-- Allow admins to perform all operations on servers
+DROP POLICY IF EXISTS "Allow admin write access to servers" ON public.servers;
+CREATE POLICY "Allow admin write access to servers" ON public.servers
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE profiles.id = auth.uid() AND profiles.is_admin = 1
+    )
+  );
+
+-- Seed initial servers data
+INSERT INTO public.servers (id, name, url, status, latency)
+VALUES 
+  ('srv_1', 'Server 1 (Primary High-Bitrate)', 'https://vidsrc.to/', 'Active (100% SLA)', 42),
+  ('srv_2', 'Server 2 (Backup Ultra-CDN)', 'https://vidsrc.me/', 'Active (99.8% SLA)', 85),
+  ('srv_3', 'Server 3 (Vidsrc.ru Premium Stream Host)', 'https://vidsrc-embed.ru/', 'Active (100% SLA)', 35)
+ON CONFLICT (id) DO UPDATE 
+SET name = EXCLUDED.name, url = EXCLUDED.url, status = EXCLUDED.status, latency = EXCLUDED.latency;
+
+

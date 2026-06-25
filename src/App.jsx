@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -29,6 +30,34 @@ import AdminPage from './pages/Home/AdminPage';
 import ProfilePage from './pages/Home/ProfilePage';
 
 function App() {
+  useEffect(() => {
+    // Request Notification permission automatically on app startup
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission()
+          .then((permission) => {
+            console.log(`Notification permission status: ${permission}`);
+          })
+          .catch((err) => {
+            console.warn('Notification permission request failed:', err);
+          });
+      }
+    }
+
+    // Request Geolocation permission automatically on app startup
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log('Location permission granted', position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          console.warn('Location permission denied/failed:', error.message);
+        },
+        { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
+      );
+    }
+  }, []);
+
   return (
     <Router>
       <Routes>
