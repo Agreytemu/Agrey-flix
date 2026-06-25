@@ -33,6 +33,13 @@ export default function ParentComponent() {
     };
   }, []);
 
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.get('auth') === 'signin' || queryParams.get('login') === 'true') {
+      setIsAuthOpen(true);
+    }
+  }, [location.search]);
+
   if (isAppLoading) {
     return (
       <div className="flex bg-[#050505] min-h-screen text-white overflow-hidden font-sans items-center justify-center">

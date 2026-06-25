@@ -1,18 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import HeroBanner from './HeroBanner';
 import { useProfile } from '../../context/ProfileContext';
-import { FaCheckCircle, FaCalendarAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaCalendarAlt, FaTimes, FaGift } from 'react-icons/fa';
 import TrendingRow from './TrendingRow';
 import ContinueWatchingRow_2 from './ContinueWatchingRow_2';
 import TrendingNowCarousel from '../../components/TrendingNowCarousel';
 import TMDBErrorDiagnostics from '../../components/TMDBErrorDiagnostics';
 import { fetchTmdb } from '../../utils/tmdb';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { HomePageSkeleton } from '../../components/Skeletons';
 
 export default function HomePage() {
   const { profile } = useProfile();
   
+  const [showFirstWelcomeModal, setShowFirstWelcomeModal] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      const storageKey = `agreyflix_first_welcome_shown_${profile.id || profile.uid}`;
+      const shown = localStorage.getItem(storageKey);
+      if (!shown) {
+        setShowFirstWelcomeModal(true);
+      }
+    } else {
+      setShowFirstWelcomeModal(false);
+    }
+  }, [profile]);
+
+  const handleCloseWelcomeModal = () => {
+    if (profile) {
+      const storageKey = `agreyflix_first_welcome_shown_${profile.id || profile.uid}`;
+      localStorage.setItem(storageKey, 'true');
+    }
+    setShowFirstWelcomeModal(false);
+  };
+
   const greeting = (() => {
     const hr = new Date().getHours();
     if (hr < 12) return 'Good morning';
@@ -287,42 +309,78 @@ export default function HomePage() {
       exit={{ opacity: 0 }} 
       className="pb-20"
     >
-      {/* Premium Welcome Banner Card */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="pt-20 md:pt-8 pb-4 px-4 md:px-16"
-      >
-        <div className="relative overflow-hidden bg-gradient-to-r from-zinc-950/95 to-[#0D0D0D]/95 border border-white/5 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
-          {/* Accent ambient glow effects matching the theme */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/10 rounded-full blur-[90px] pointer-events-none -mr-16 -mt-16" />
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-zinc-700/5 rounded-full blur-[90px] pointer-events-none -ml-16 -mb-16" />
-          
-          <div className="relative z-10 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-red-500">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-              AgreyFlix Streaming Experience
+      {/* Welcome Banner Card (Member vs Guest) */}
+      {profile ? (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="pt-20 md:pt-8 pb-4 px-4 md:px-16"
+        >
+          <div className="relative overflow-hidden bg-gradient-to-r from-zinc-950/95 to-[#0D0D0D]/95 border border-white/5 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+            {/* Accent ambient glow effects matching the theme */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/10 rounded-full blur-[90px] pointer-events-none -mr-16 -mt-16" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-zinc-700/5 rounded-full blur-[90px] pointer-events-none -ml-16 -mb-16" />
+            
+            <div className="relative z-10 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-red-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                AgreyFlix Streaming Experience
+              </div>
+              <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2">
+                {greeting}, {userName}! <FaCheckCircle className="text-emerald-500 text-lg md:text-2xl shrink-0" title="Verified Account" />
+              </h1>
+              <p className="text-zinc-400 text-sm md:text-base font-semibold max-w-2xl leading-relaxed">
+                We hope you enjoy streaming all the latest blockbuster movies, trending TV series, and Swahili content in crystal-clear HD. Sit back and have an exceptional viewing session!
+              </p>
             </div>
-            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2">
-              {greeting}, {userName}! <FaCheckCircle className="text-emerald-500 text-lg md:text-2xl shrink-0" title="Verified Account" />
-            </h1>
-            <p className="text-zinc-400 text-sm md:text-base font-semibold max-w-2xl leading-relaxed">
-              We hope you enjoy streaming all the latest blockbuster movies, trending TV series, and Swahili content in crystal-clear HD. Sit back and have an exceptional viewing session!
-            </p>
+            
+            {/* Sign up "together since" badge */}
+            <div className="relative z-10 shrink-0 self-start md:self-center bg-zinc-900/60 border border-white/5 rounded-2xl p-4 flex flex-col items-start gap-1 backdrop-blur-sm">
+              <span className="text-[10px] font-black uppercase text-zinc-500 tracking-wider flex items-center gap-1.5">
+                <FaCalendarAlt className="text-red-500" /> Member Milestone
+              </span>
+              <span className="text-xs md:text-sm font-black text-white">
+                Together since <span className="text-red-500">{joinedDate}</span>
+              </span>
+            </div>
           </div>
-          
-          {/* Sign up "together since" badge */}
-          <div className="relative z-10 shrink-0 self-start md:self-center bg-zinc-900/60 border border-white/5 rounded-2xl p-4 flex flex-col items-start gap-1 backdrop-blur-sm">
-            <span className="text-[10px] font-black uppercase text-zinc-500 tracking-wider flex items-center gap-1.5">
-              <FaCalendarAlt className="text-red-500" /> Member Milestone
-            </span>
-            <span className="text-xs md:text-sm font-black text-white">
-              Together since <span className="text-red-500">{joinedDate}</span>
-            </span>
+        </motion.div>
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="pt-20 md:pt-8 pb-4 px-4 md:px-16"
+        >
+          <div className="relative overflow-hidden bg-gradient-to-r from-zinc-950/95 to-[#0D0D0D]/95 border border-white/5 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+            {/* Accent ambient glow effects matching the theme */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/10 rounded-full blur-[90px] pointer-events-none -mr-16 -mt-16" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-zinc-700/5 rounded-full blur-[90px] pointer-events-none -ml-16 -mb-16" />
+            
+            <div className="relative z-10 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-red-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                Welcome to AgreyFlix
+              </div>
+              <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">
+                Explore Premium Entertainment!
+              </h1>
+              <p className="text-zinc-400 text-sm md:text-base font-semibold max-w-2xl leading-relaxed">
+                Enjoy a preview of our massive catalog of movies, series, and animations. Sign in or sign up now to unlock unlimited ad-free streaming, personalized watchlist curation, offline downloads, and continue watching right where you left off.
+              </p>
+            </div>
+            
+            {/* Sign in prompt button */}
+            <button
+              onClick={() => window.dispatchEvent(new Event('openAuthModal'))}
+              className="relative z-10 shrink-0 self-start md:self-center bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black text-xs tracking-widest uppercase py-3.5 px-6 rounded-2xl transition-all shadow-lg hover:shadow-red-500/20 active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              Get Started Now
+            </button>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
 
       <HeroBanner />
       
@@ -379,6 +437,84 @@ export default function HomePage() {
           </motion.div>
         )}
       </motion.div>
+
+      {/* First-time Sign-In Welcome Popup Modal */}
+      <AnimatePresence>
+        {showFirstWelcomeModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.85 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseWelcomeModal}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            
+            {/* Modal Box */}
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              className="relative w-full max-w-lg bg-[#0D0D0D] border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl overflow-hidden z-10"
+            >
+              {/* Radial gradient glow decoration */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-red-600/15 rounded-full blur-[80px] pointer-events-none" />
+              
+              {/* Close Button */}
+              <button 
+                onClick={handleCloseWelcomeModal}
+                className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full text-zinc-500 hover:text-white transition-all outline-none border border-transparent cursor-pointer"
+                title="Close"
+              >
+                <FaTimes size={16} />
+              </button>
+
+              <div className="relative z-10 text-center flex flex-col items-center">
+                {/* Glowing Icon */}
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-red-700 shadow-xl shadow-red-500/20 flex items-center justify-center mb-6">
+                  <FaGift className="text-white text-2xl animate-pulse" />
+                </div>
+
+                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-2">
+                  Welcome to AgreyFlix!
+                </h2>
+                <p className="text-red-500 text-xs font-black uppercase tracking-widest mb-4">
+                  Your Premium Access is Active
+                </p>
+                
+                <p className="text-zinc-400 text-sm font-semibold mb-6 leading-relaxed">
+                  We are absolutely thrilled to welcome you to the ultimate AgreyFlix streaming family! You now have full access to high-speed downloads, customizable watchlist curation, smart progress synchronization, and a premium ad-free experience.
+                </p>
+
+                {/* Features Checklist */}
+                <div className="w-full bg-zinc-950/60 border border-white/5 rounded-2xl p-4 mb-6 flex flex-col gap-3 text-left">
+                  <div className="flex items-start gap-3">
+                    <FaCheckCircle className="text-red-500 text-sm shrink-0 mt-0.5" />
+                    <p className="text-xs text-zinc-300 font-semibold"><span className="text-white font-black">Unlimited Ad-free Streaming</span> – Enjoy uninterrupted playback in high-definition (HD).</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <FaCheckCircle className="text-red-500 text-sm shrink-0 mt-0.5" />
+                    <p className="text-xs text-zinc-300 font-semibold"><span className="text-white font-black">Personalized Watchlist</span> – Save movies and series to watch anytime, anywhere.</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <FaCheckCircle className="text-red-500 text-sm shrink-0 mt-0.5" />
+                    <p className="text-xs text-zinc-300 font-semibold"><span className="text-white font-black">Fast Downloads</span> – Grab movies and high-speed subtitles directly to your local storage.</p>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleCloseWelcomeModal}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black text-xs tracking-widest uppercase py-3.5 px-6 rounded-2xl transition-all shadow-lg shadow-red-600/20 active:scale-95 cursor-pointer"
+                >
+                  Start Streaming Now
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

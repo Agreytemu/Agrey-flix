@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { FaSearch, FaHome, FaFilm, FaTv, FaChartLine, FaPlus, FaSignOutAlt, FaMagic, FaGlobeAfrica, FaAward, FaCalendarAlt, FaShieldAlt, FaBell, FaTimes, FaCircle, FaCheckCircle } from 'react-icons/fa';
+import { FaSearch, FaHome, FaFilm, FaTv, FaChartLine, FaPlus, FaSignOutAlt, FaMagic, FaGlobeAfrica, FaAward, FaCalendarAlt, FaShieldAlt, FaBell, FaTimes, FaCircle, FaCheckCircle, FaUser } from 'react-icons/fa';
 import { BiMoviePlay } from 'react-icons/bi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProfile } from '../../context/ProfileContext';
@@ -16,16 +16,41 @@ export default function Sidebar({ isOpen, onClose }) {
   // Fetch notifications to calculate unread badge
   const fetchNotifList = async () => {
     try {
-      const list = await supabaseService.getNotifications();
-      setNotifications(list);
+      const fullList = await supabaseService.getNotifications();
+      
+      const isUserSubscriber = profile?.isSubscribed || profile?.is_subscribed || profile?.preferences?.isSubscribed;
+      
+      // Filter notifications:
+      // - Show subscriber-only messages only if the user is an active premium subscriber.
+      // - Show regular announcements only if created after user's created_at (joined time).
+      // - Always show welcome notifications (type === 'welcome') to welcome new users automatically!
+      const filteredList = fullList.filter(item => {
+        const isSubscribersOnly = item.target_audience === 'subscribers' || (item.type || '').includes(':subscribers');
+        
+        // Non-logged-in or non-subscribers can NEVER see subscriber-only notifications
+        if (isSubscribersOnly && !isUserSubscriber) {
+          return false;
+        }
+
+        if (item.type === 'welcome') {
+          return true;
+        }
+        if (profile?.created_at) {
+          // Compare dates
+          return new Date(item.created_at).getTime() >= new Date(profile.created_at).getTime() - 5000; // 5 seconds margin to prevent clock skew issues
+        }
+        return true;
+      });
+
+      setNotifications(filteredList);
       
       // Calculate unread count
       const lastViewed = localStorage.getItem('agreyflix_last_notif_view');
       if (lastViewed) {
-        const unread = list.filter(item => new Date(item.created_at) > new Date(lastViewed)).length;
+        const unread = filteredList.filter(item => new Date(item.created_at) > new Date(lastViewed)).length;
         setUnreadCount(unread);
       } else {
-        setUnreadCount(list.length);
+        setUnreadCount(filteredList.length);
       }
     } catch (e) {
       console.warn('Failed to load notifications for badge:', e);
@@ -38,7 +63,7 @@ export default function Sidebar({ isOpen, onClose }) {
     const handleNewNotif = () => fetchNotifList();
     window.addEventListener('newNotification', handleNewNotif);
     return () => window.removeEventListener('newNotification', handleNewNotif);
-  }, []);
+  }, [profile]);
 
   const handleOpenNotifications = () => {
     setIsNotifOpen(true);
@@ -57,6 +82,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { icon: FaAward, path: '/best-artists', label: 'Rank Artists' },
     { icon: FaChartLine, path: '/trending', label: 'Trending' },
     { icon: FaPlus, path: '/watchlist', label: 'Watchlist' },
+    { icon: FaUser, path: '/profile', label: 'Profile' },
   ];
 
   const sidebarVariants = {
@@ -133,25 +159,27 @@ export default function Sidebar({ isOpen, onClose }) {
             })}
 
             {/* Notifications Panel Link */}
-            <motion.div variants={itemVariants}>
-              <button
-                onClick={() => {
-                  handleOpenNotifications();
-                  onClose();
-                }}
-                className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all font-semibold text-gray-400 hover:text-white hover:bg-white/5 text-left outline-none border border-transparent"
-              >
-                <div className="flex items-center gap-4">
-                  <FaBell className="text-[1.35rem] shrink-0 text-gray-400" />
-                  <span className="whitespace-nowrap text-[15px]">Notifications</span>
-                </div>
-                {unreadCount > 0 && (
-                  <span className="bg-red-600 text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center animate-bounce shrink-0">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-            </motion.div>
+            {profile && (
+              <motion.div variants={itemVariants}>
+                <button
+                  onClick={() => {
+                    handleOpenNotifications();
+                    onClose();
+                  }}
+                  className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all font-semibold text-gray-400 hover:text-white hover:bg-white/5 text-left outline-none border border-transparent"
+                >
+                  <div className="flex items-center gap-4">
+                    <FaBell className="text-[1.35rem] shrink-0 text-gray-400" />
+                    <span className="whitespace-nowrap text-[15px]">Notifications</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="bg-red-600 text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center animate-bounce shrink-0">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              </motion.div>
+            )}
 
             {/* Admin Panel Link */}
             {profile?.isAdmin && (
@@ -175,20 +203,50 @@ export default function Sidebar({ isOpen, onClose }) {
           </nav>
         </div>
 
-        {/* User / Settings Profile */}
-        <motion.div variants={itemVariants} className="w-full px-4">
-          <button className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 transition-all outline-none border border-transparent hover:border-white/10 group">
-             <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" className="w-9 h-9 rounded-full bg-[#151515] shrink-0 border border-white/10 group-hover:border-white/30 transition-colors" />
-             <div className="flex flex-col items-start justify-center">
-               <span className="font-bold text-[15px] text-white whitespace-nowrap transition-opacity duration-300 leading-none mb-1 flex items-center gap-1">
-                 {profile?.displayName || 'My Profile'}
-                 <FaCheckCircle className="text-emerald-500 text-[11px] shrink-0" title="Verified Account" />
-               </span>
-               <span className="text-xs text-emerald-500 font-bold top-0 leading-none">
-                 {profile?.isAdmin ? 'Verified Administrator' : 'Verified Account'}
-               </span>
-             </div>
-          </button>
+        {/* User / Settings Profile & Logout */}
+        <motion.div variants={itemVariants} className="w-full px-4 flex items-center gap-2">
+          {profile ? (
+            <>
+              <button 
+                onClick={() => window.dispatchEvent(new Event('openAuthModal'))}
+                className="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 transition-all outline-none border border-transparent hover:border-white/10 group overflow-hidden"
+              >
+                 <img src={profile.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="avatar" className="w-8 h-8 rounded-full bg-[#151515] shrink-0 border border-white/10 group-hover:border-white/30 transition-colors" />
+                 <div className="flex flex-col items-start justify-center min-w-0">
+                   <span className="font-bold text-sm text-white truncate max-w-[100px] transition-opacity duration-300 leading-none mb-1 flex items-center gap-1">
+                     {profile.displayName || 'Subscriber'}
+                     <FaCheckCircle className="text-emerald-500 text-[10px] shrink-0" title="Verified Account" />
+                   </span>
+                   <span className="text-[10px] text-emerald-500 font-bold leading-none truncate max-w-[100px]">
+                     {profile.isAdmin ? 'Admin' : 'Member'}
+                   </span>
+                 </div>
+              </button>
+              
+              {/* Logout Button */}
+              <button
+                onClick={async () => {
+                  try {
+                    await supabaseService.signOut();
+                    window.location.reload();
+                  } catch (err) {
+                    console.error("Logout failed:", err);
+                  }
+                }}
+                className="w-10 h-10 rounded-2xl bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/10 hover:border-red-500 flex items-center justify-center shrink-0 transition-all duration-300 active:scale-90 cursor-pointer"
+                title="Log Out"
+              >
+                <FaSignOutAlt className="text-sm" />
+              </button>
+            </>
+          ) : (
+            <button 
+              onClick={() => window.dispatchEvent(new Event('openAuthModal'))}
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black text-xs tracking-wider uppercase transition-all shadow-lg shadow-red-600/20 active:scale-95 cursor-pointer"
+            >
+              <FaSignOutAlt className="text-xs rotate-180" /> Sign In / Join
+            </button>
+          )}
         </motion.div>
       </motion.div>
 

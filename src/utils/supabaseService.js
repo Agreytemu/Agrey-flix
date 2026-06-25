@@ -183,33 +183,13 @@ export const supabaseService = {
             preferencesSet: false,
             preferences: {}
           },
-          emailRedirectTo: window.location.origin + '/verify-email'
+          emailRedirectTo: 'https://agrey-flix.vercel.app/verify-email'
         }
       });
 
       if (error) throw error;
-      
-      // Explicitly insert into profiles table in case postgres trigger hasn't run (run asynchronously, non-blocking)
-      if (data?.user) {
-        supabase.from('profiles').insert({
-          id: data.user.id,
-          email: email,
-          display_name: name,
-          watchlist: [],
-          continue_watching: [],
-          preferences_set: false,
-          preferences: {}
-        }).then(({ error: dbErr }) => {
-          if (dbErr) {
-            console.warn('Initial profiles table insert info (safe to ignore if trigger handled it):', dbErr);
-          }
-        }).catch(err => {
-          console.warn('Asynchronous profiles table insert failed:', err);
-        });
-      }
 
       // If email verification is enabled by default in Supabase, we might not get a session immediately.
-      // We will simulate the signout/verification flow.
       if (data?.user && !data.session) {
         return { user: data.user, sessionRequired: true };
       }
@@ -240,6 +220,11 @@ export const supabaseService = {
 
       users[email.toLowerCase()] = { ...newUser, password };
       saveMockUsers(users);
+
+      // Auto login mock user
+      currentSessionUser = newUser;
+      saveMockSession(newUser);
+      notifyListeners(newUser);
 
       return { user: newUser, sessionRequired: false };
     }
@@ -520,7 +505,7 @@ export const supabaseService = {
   sendPasswordResetEmail: async (email) => {
     if (isConfigured && supabase) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/reset-password'
+        redirectTo: 'https://agrey-flix.vercel.app/reset-password'
       });
       if (error) throw error;
     } else {
@@ -586,12 +571,32 @@ export const supabaseService = {
   /**
    * Send a new notification (Admin only).
    */
-  sendNotification: async (title, message, type = 'system') => {
+  sendNotification: async (title, message, type = 'system', targetAudience = 'all') => {
     if (isConfigured && supabase) {
+      try {
+        // First try to insert with dedicated target_audience column if it exists
+        const { data, error } = await supabase
+          .from('notifications')
+          .insert([{ title, message, type, target_audience: targetAudience }])
+          .select();
+        
+        if (!error) {
+          return data?.[0];
+        } else {
+          // If the error indicates target_audience is invalid column, proceed to fallback
+          console.warn('Supabase target_audience insert error, trying fallback:', error.message);
+        }
+      } catch (err) {
+        console.warn('Fallback triggered for notification insert:', err);
+      }
+
+      // Fallback: encode the target audience within the type attribute (e.g., "system:subscribers")
+      const encodedType = targetAudience === 'subscribers' ? `${type}:subscribers` : type;
       const { data, error } = await supabase
         .from('notifications')
-        .insert([{ title, message, type }])
+        .insert([{ title, message, type: encodedType }])
         .select();
+      
       if (error) throw error;
       return data?.[0];
     } else {
@@ -603,6 +608,7 @@ export const supabaseService = {
             title: 'Welcome to AgreyFlix!',
             message: 'Stream your favorite movies, TV shows, and series in crisp HD quality with blazing fast servers.',
             type: 'system',
+            target_audience: 'all',
             created_at: new Date(Date.now() - 3600000).toISOString()
           }
         ];
@@ -611,6 +617,7 @@ export const supabaseService = {
           title,
           message,
           type,
+          target_audience: targetAudience,
           created_at: new Date().toISOString()
         };
         const updated = [newNotif, ...list];
@@ -673,6 +680,8 @@ export const supabaseService = {
         watchlist: user.watchlist || [],
         continue_watching: user.continueWatching || [],
         is_admin: (user.isAdmin || user.email?.toLowerCase() === 'webbrowsera@gmail.com') ? 1 : 0,
+        is_subscribed: (user.isSubscribed || user.is_subscribed) ? 1 : 0,
+        is_archived: user.is_archived || 0,
         created_at: user.created_at || new Date().toISOString()
       }));
     }
@@ -706,6 +715,108 @@ export const supabaseService = {
           saveMockSession(currentSessionUser);
           notifyListeners(currentSessionUser);
         }
+        return true;
+      }
+      throw new Error('User not found');
+    }
+  },
+
+  /**
+   * Update a user's subscription status (Admin only).
+   */
+  updateUserSubscriptionStatus: async (userId, isSubscribed) => {
+    const is_subscribed = isSubscribed ? 1 : 0;
+    if (isConfigured && supabase) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_subscribed, isSubscribed: !!isSubscribed })
+        .eq('id', userId);
+      if (error) throw error;
+      return true;
+    } else {
+      const users = getMockUsers();
+      const userKey = Object.keys(users).find(
+        key => users[key].id === userId || users[key].uid === userId
+      );
+      if (userKey) {
+        users[userKey].isSubscribed = !!isSubscribed;
+        users[userKey].is_subscribed = is_subscribed;
+        saveMockUsers(users);
+        return true;
+      }
+      throw new Error('User not found');
+    }
+  },
+
+  /**
+   * Archive a user profile (Soft Delete - Admin only).
+   */
+  archiveProfile: async (userId) => {
+    if (isConfigured && supabase) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_archived: 1 })
+        .eq('id', userId);
+      if (error) throw error;
+      return true;
+    } else {
+      const users = getMockUsers();
+      const userKey = Object.keys(users).find(
+        key => users[key].id === userId || users[key].uid === userId
+      );
+      if (userKey) {
+        users[userKey].is_archived = 1;
+        saveMockUsers(users);
+        return true;
+      }
+      throw new Error('User not found');
+    }
+  },
+
+  /**
+   * Restore an archived user profile (Admin only).
+   */
+  restoreProfile: async (userId) => {
+    if (isConfigured && supabase) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_archived: 0 })
+        .eq('id', userId);
+      if (error) throw error;
+      return true;
+    } else {
+      const users = getMockUsers();
+      const userKey = Object.keys(users).find(
+        key => users[key].id === userId || users[key].uid === userId
+      );
+      if (userKey) {
+        users[userKey].is_archived = 0;
+        saveMockUsers(users);
+        return true;
+      }
+      throw new Error('User not found');
+    }
+  },
+
+  /**
+   * Delete a user profile (Admin only).
+   */
+  deleteProfile: async (userId) => {
+    if (isConfigured && supabase) {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+      if (error) throw error;
+      return true;
+    } else {
+      const users = getMockUsers();
+      const userKey = Object.keys(users).find(
+        key => users[key].id === userId || users[key].uid === userId
+      );
+      if (userKey) {
+        delete users[userKey];
+        saveMockUsers(users);
         return true;
       }
       throw new Error('User not found');

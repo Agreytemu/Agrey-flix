@@ -31,6 +31,14 @@ export default function LandingPage() {
   const [posters, setPosters] = useState([]);
   const [activePhraseIndex, setActivePhraseIndex] = useState(0);
 
+  // Auto-redirect if auth parameter is present
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    if (queryParams.get('auth') === 'signin' || queryParams.get('login') === 'true') {
+      navigate('/home?auth=signin', { replace: true });
+    }
+  }, [navigate]);
+
   // Load raw posters from API
   useEffect(() => {
     let active = true;

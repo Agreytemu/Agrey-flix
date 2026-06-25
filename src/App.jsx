@@ -22,7 +22,11 @@ import AuthActionPage from './pages/Home/AuthActionPage';
 import PreferencesSetup from './pages/Home/PreferencesSetup';
 import OnboardingGuard from './components/OnboardingGuard';
 import DownloadPage from './pages/Home/DownloadPage';
+import IosDownloadPage from './pages/Home/IosDownloadPage';
+import AndroidDownloadPage from './pages/Home/AndroidDownloadPage';
+import ComputerDownloadPage from './pages/Home/ComputerDownloadPage';
 import AdminPage from './pages/Home/AdminPage';
+import ProfilePage from './pages/Home/ProfilePage';
 
 function App() {
   return (
@@ -45,9 +49,13 @@ function App() {
             <Route path="/movies/watch/:slug" element={<MovieDetails />} />
             <Route path="/series/watch/:slug" element={<TvDetails />} />
             <Route path="/download/:type/:slug" element={<DownloadPage />} />
+            <Route path="/download/:type/:slug/ios" element={<IosDownloadPage />} />
+            <Route path="/download/:type/:slug/android" element={<AndroidDownloadPage />} />
+            <Route path="/download/:type/:slug/computer" element={<ComputerDownloadPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/person/:id/:slug" element={<PersonPage />} />
             <Route path="/watchlist" element={<WatchlistPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/best-artists" element={<BestArtistsPage />} />
             <Route path="/upcoming" element={<UpcomingMoviesPage />} />

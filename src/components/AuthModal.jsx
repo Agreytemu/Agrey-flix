@@ -4,21 +4,64 @@ import { FaTimes, FaGoogle, FaEnvelope, FaLock, FaUser, FaSpinner, FaExclamation
 import { BiMoviePlay } from 'react-icons/bi';
 import { supabaseService } from '../utils/supabaseService';
 
-const getErrorMessage = (err) => {
-  const msg = err?.message || err || '';
-  if (msg.includes('invalid-email') || msg.includes('Email format is invalid')) {
-    return "That email address doesn't look right.";
+const getErrorMessage = (err, isLogin = true) => {
+  if (!err) {
+    return isLogin 
+      ? 'Kuna tatizo limetokea wakati wa kuingia. Tafadhali jaribu tena.'
+      : 'Kuna tatizo limetokea wakati wa kusajili. Tafadhali jaribu tena.';
   }
-  if (msg.includes('user-not-found') || msg.includes('Invalid login credentials')) {
-    return "Email or password is incorrect.";
+
+  // Log to console so that developer can inspect the raw error object
+  console.error('[AgreyFlix Auth Error Detail]:', err);
+
+  let msg = '';
+  if (typeof err === 'string') {
+    msg = err;
+  } else if (err instanceof Error) {
+    msg = err.message;
+  } else if (typeof err === 'object') {
+    msg = err.message || err.error_description || err.error || '';
+    if (!msg) {
+      try {
+        const serialized = JSON.stringify(err);
+        if (serialized && serialized !== '{}') {
+          msg = serialized;
+        } else {
+          msg = err.toString();
+        }
+      } catch (e) {
+        msg = '';
+      }
+    }
   }
-  if (msg.includes('email-already-in-use') || msg.includes('User already exists')) {
-    return "An account with this email already exists.";
+
+  // If msg is empty or generic, use a user-friendly default based on the action
+  if (!msg || msg === '{}' || msg === '[object Object]') {
+    return isLogin
+      ? 'Kuna hitilafu ya mtandao au mfumo wakati wa kuingia. Hakikisha barua pepe (Email) na nenosiri (Password) ni sahihi.'
+      : 'Kuna hitilafu ya mtandao au mfumo wakati wa kusajili. Hakikisha barua pepe (Email) haijatumika na nenosiri lina herufi zisizopungua 6.';
   }
-  if (msg.includes('weak-password') || msg.includes('Password should be')) {
-    return "Password must be at least 6 characters.";
+
+  const lowerMsg = msg.toLowerCase();
+
+  // Swahili + English clean error map
+  if (lowerMsg.includes('invalid-email') || lowerMsg.includes('email format is invalid') || lowerMsg.includes('invalid_email')) {
+    return "Barua pepe (Email) haiko sahihi. Tafadhali weka email halisi (mfano: jina@gmail.com).";
   }
-  return msg || 'Something went wrong. Please try again.';
+  if (lowerMsg.includes('user-not-found') || lowerMsg.includes('invalid login credentials') || lowerMsg.includes('invalid_credentials')) {
+    return "Barua pepe au password si sahihi. Tafadhali kagua vizuri na ujaribu tena.";
+  }
+  if (lowerMsg.includes('email-already-in-use') || lowerMsg.includes('user already exists') || lowerMsg.includes('email_exists')) {
+    return "Email hii ya barua pepe tayari imesajiliwa kwenye AgreyFlix! Tafadhali nenda kwenye sehemu ya 'Log In' ili kuingia.";
+  }
+  if (lowerMsg.includes('weak-password') || lowerMsg.includes('password should be') || lowerMsg.includes('weak_password') || lowerMsg.includes('at least 6 characters')) {
+    return "Nenosiri (Password) lazima liwe na urefu wa herufi au tarakimu zisizopungua sita (6).";
+  }
+  if (lowerMsg.includes('network') || lowerMsg.includes('failed to fetch')) {
+    return "Kuna tatizo la mtandao. Tafadhali kagua muunganisho wako kisha ujaribu tena.";
+  }
+
+  return msg;
 };
 
 export default function AuthModal({ isOpen, onClose }) {
@@ -90,7 +133,7 @@ export default function AuthModal({ isOpen, onClose }) {
       await supabaseService.sendPasswordResetEmail(resetEmail.trim());
       setResetSent(true);
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getErrorMessage(err, true));
     } finally {
       setLoading(false);
     }
@@ -122,23 +165,14 @@ export default function AuthModal({ isOpen, onClose }) {
       }
       onClose();
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getErrorMessage(err, isLogin));
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      await supabaseService.signInWithGoogle();
-      onClose();
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+    setError('Sorry, we encouraging you to use your email to signup or sign in');
   };
 
 
