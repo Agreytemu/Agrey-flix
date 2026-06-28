@@ -214,3 +214,42 @@ ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name, url = EXCLUDED.url, status = EXCLUDED.status, latency = EXCLUDED.latency;
 
 
+-- 17. Create the public tiktok_videos table
+CREATE TABLE IF NOT EXISTS public.tiktok_videos (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  tiktok_url TEXT NOT NULL,
+  thumbnail TEXT,
+  likes_count INTEGER DEFAULT 0 NOT NULL,
+  shares_count INTEGER DEFAULT 0 NOT NULL,
+  active BOOLEAN DEFAULT true NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Upgrade existing table if it was created without columns
+ALTER TABLE public.tiktok_videos ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0 NOT NULL;
+ALTER TABLE public.tiktok_videos ADD COLUMN IF NOT EXISTS shares_count INTEGER DEFAULT 0 NOT NULL;
+
+-- 18. Enable Row Level Security (RLS) on tiktok_videos table
+ALTER TABLE public.tiktok_videos ENABLE ROW LEVEL SECURITY;
+
+-- 19. Create RLS Policies for tiktok_videos
+-- Allow public read access to tiktok_videos
+DROP POLICY IF EXISTS "Allow public read access to tiktok_videos" ON public.tiktok_videos;
+CREATE POLICY "Allow public read access to tiktok_videos" ON public.tiktok_videos
+  FOR SELECT
+  USING (true);
+
+-- Allow admins to perform all operations on tiktok_videos
+DROP POLICY IF EXISTS "Allow admin write access to tiktok_videos" ON public.tiktok_videos;
+CREATE POLICY "Allow admin write access to tiktok_videos" ON public.tiktok_videos
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE profiles.id = auth.uid() AND profiles.is_admin = 1
+    )
+  );
+
+
+

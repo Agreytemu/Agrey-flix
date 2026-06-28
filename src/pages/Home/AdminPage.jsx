@@ -9,7 +9,7 @@ import {
   FaUndo, FaHeartbeat, FaServer, FaDatabase, FaCog, FaTerminal, 
   FaBolt, FaChartLine, FaPlay, FaDownload, FaClock, FaFlag, FaLock, 
   FaSlidersH, FaSearch, FaSyncAlt, FaWrench, FaFolder, FaChevronLeft, 
-  FaChevronRight, FaBars
+  FaChevronRight, FaBars, FaVideo, FaHeart
 } from 'react-icons/fa';
 
 export default function AdminPage() {
@@ -30,6 +30,8 @@ export default function AdminPage() {
   const [reportsLoading, setReportsLoading] = useState(false);
   const [servers, setServers] = useState([]);
   const [serversLoading, setServersLoading] = useState(false);
+  const [tiktokVideos, setTiktokVideos] = useState([]);
+  const [tiktokLoading, setTiktokLoading] = useState(false);
   
   // Form States
   const [newTitle, setNewTitle] = useState('');
@@ -38,6 +40,11 @@ export default function AdminPage() {
   const [newAudience, setNewAudience] = useState('all');
   const [notifSuccess, setNotifSuccess] = useState('');
   const [notifError, setNotifError] = useState('');
+
+  const [newTiktokTitle, setNewTiktokTitle] = useState('');
+  const [newTiktokUrl, setNewTiktokUrl] = useState('');
+  const [tiktokSuccess, setTiktokSuccess] = useState('');
+  const [tiktokError, setTiktokError] = useState('');
   
   const [welcomeTitle, setWelcomeTitle] = useState('Welcome to AgreyFlix!');
   const [welcomeMessage, setWelcomeMessage] = useState('Hello! Enjoy ads-free movies & series in HD!');
@@ -94,18 +101,21 @@ export default function AdminPage() {
     setNotifLoading(true);
     setReportsLoading(true);
     setServersLoading(true);
+    setTiktokLoading(true);
     
     try {
-      const [uList, nList, rList, sList] = await Promise.all([
+      const [uList, nList, rList, sList, tList] = await Promise.all([
         supabaseService.getAllProfiles(),
         supabaseService.getNotifications(),
         supabaseService.getReports(),
-        supabaseService.getServers()
+        supabaseService.getServers(),
+        supabaseService.getTikTokVideos()
       ]);
       setUsers(uList || []);
       setNotifications(nList || []);
       setReports(rList || []);
       setServers(sList || []);
+      setTiktokVideos(tList || []);
     } catch (err) {
       console.error('Failed to retrieve control center dataset:', err);
     } finally {
@@ -113,6 +123,7 @@ export default function AdminPage() {
       setNotifLoading(false);
       setReportsLoading(false);
       setServersLoading(false);
+      setTiktokLoading(false);
     }
   };
 
@@ -127,6 +138,53 @@ export default function AdminPage() {
       addLog('AUDIT', `Policy Change: "${label}" set to ${newVal ? 'ENABLED' : 'DISABLED'}`);
       return { ...prev, [key]: newVal };
     });
+  };
+
+  const handleAddTiktok = async (e) => {
+    e.preventDefault();
+    if (!newTiktokTitle.trim() || !newTiktokUrl.trim()) {
+      setTiktokError('Please provide both a title and a TikTok URL.');
+      return;
+    }
+    setTiktokSuccess('');
+    setTiktokError('');
+    try {
+      const newVideo = await supabaseService.createTikTokVideo({
+        title: newTiktokTitle.trim(),
+        tiktok_url: newTiktokUrl.trim(),
+        active: true
+      });
+      setTiktokVideos(prev => [newVideo, ...prev]);
+      setNewTiktokTitle('');
+      setNewTiktokUrl('');
+      setTiktokSuccess('TikTok video added successfully!');
+      addLog('SUCCESS', `Added new TikTok video: ${newTiktokTitle}`);
+      setTimeout(() => setTiktokSuccess(''), 4000);
+    } catch (err) {
+      setTiktokError('Failed to add TikTok video.');
+    }
+  };
+
+  const handleToggleTiktokActive = async (id, currentActive) => {
+    try {
+      const updatedActive = !currentActive;
+      await supabaseService.updateTikTokVideoActive(id, updatedActive);
+      setTiktokVideos(prev => prev.map(v => v.id === id ? { ...v, active: updatedActive } : v));
+      addLog('AUDIT', `Toggled TikTok active status for ID: ${id} to ${updatedActive}`);
+    } catch (err) {
+      console.error('Failed to toggle TikTok active status:', err);
+    }
+  };
+
+  const handleDeleteTiktok = async (id, title) => {
+    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
+    try {
+      await supabaseService.deleteTikTokVideo(id);
+      setTiktokVideos(prev => prev.filter(v => v.id !== id));
+      addLog('ALERT', `Deleted TikTok video: ${title}`);
+    } catch (err) {
+      console.error('Failed to delete TikTok video:', err);
+    }
   };
 
   const handleSendNotification = async (e) => {
@@ -276,7 +334,7 @@ export default function AdminPage() {
     users.forEach(u => {
       count += (u.continue_watching?.length || 0) + (u.watchlist?.length || 0);
     });
-    return count + 114; // live database sum + offset
+    return count;
   };
 
   const calcTotalWatchTime = () => {
@@ -284,7 +342,7 @@ export default function AdminPage() {
     users.forEach(u => {
       hrs += (u.continue_watching?.length || 0) * 1.25;
     });
-    return Math.round(hrs + 48) + ' hrs';
+    return Math.round(hrs) + ' hrs';
   };
 
   const getTopMovies = () => {
@@ -298,27 +356,22 @@ export default function AdminPage() {
     });
     const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
     if (sorted.length === 0) {
-      return [
-        { title: 'The Flash', count: 18, genre: 'Sci-Fi' },
-        { title: 'Avatar: The Way of Water', count: 15, genre: 'Action' },
-        { title: 'Wednesday', count: 12, genre: 'Fantasy' },
-        { title: 'Extraction 2', count: 9, genre: 'Action' }
-      ];
+      return [];
     }
     return sorted.slice(0, 5).map(([title, val]) => ({ title, count: val, genre: 'Cinema' }));
   };
 
   const formatJoinedDate = (createdAt) => {
-    if (!createdAt) return 'Bado/Unknown';
+    if (!createdAt) return 'Unknown';
     const d = new Date(createdAt);
-    const dayNamesSwahili = ['Jumapili', 'Jumatatu', 'Jumanne', 'Jumatano', 'Alhamisi', 'Ijumaa', 'Jumamosi'];
-    const monthNamesSwahili = [
-      'Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Ago', 'Sep', 'Okt', 'Nov', 'Des'
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
-    const dayName = dayNamesSwahili[d.getDay()];
+    const dayName = dayNames[d.getDay()];
     const date = d.getDate();
-    const month = monthNamesSwahili[d.getMonth()];
+    const month = monthNames[d.getMonth()];
     const year = d.getFullYear();
     let hours = d.getHours();
     const minutes = String(d.getMinutes()).padStart(2, '0');
@@ -394,6 +447,7 @@ export default function AdminPage() {
     { id: 'dashboard', label: 'Dashboard', icon: FaChartLine },
     { id: 'users-analytics', label: 'Users Analytics', icon: FaUsers },
     { id: 'content-analytics', label: 'Content Analytics', icon: FaPlay },
+    { id: 'tiktok-videos', label: 'TikTok Videos', icon: FaHeart },
     { id: 'notifications', label: 'Notifications', icon: FaBell },
     { id: 'reports', label: 'Reports', icon: FaFlag },
     { id: 'server-monitor', label: 'Server Monitor', icon: FaServer },
@@ -555,17 +609,23 @@ export default function AdminPage() {
                     <div className="bg-[#0D0D0D] border border-white/5 p-6 rounded-3xl shadow-lg">
                       <h3 className="text-sm font-black uppercase tracking-wider text-white mb-4">User Activity - Most Watched Catalogs</h3>
                       <div className="space-y-3">
-                        {getTopMovies().map((mov, idx) => (
-                          <div key={idx} className="flex justify-between items-center bg-black/30 px-4 py-3 rounded-xl border border-white/[0.02]">
-                            <div className="flex items-center gap-3">
-                              <span className="text-zinc-600 font-black font-mono text-xs">0{idx+1}</span>
-                              <span className="text-xs font-bold text-white">{mov.title}</span>
-                            </div>
-                            <span className="text-[10px] font-mono font-bold bg-zinc-900 border border-white/5 px-2.5 py-1 rounded text-zinc-400">
-                              {mov.count} saves
-                            </span>
+                        {getTopMovies().length === 0 ? (
+                          <div className="text-center py-6 text-xs text-zinc-500 font-bold">
+                            No user interactions recorded yet.
                           </div>
-                        ))}
+                        ) : (
+                          getTopMovies().map((mov, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-black/30 px-4 py-3 rounded-xl border border-white/[0.02]">
+                              <div className="flex items-center gap-3">
+                                <span className="text-zinc-600 font-black font-mono text-xs">0{idx+1}</span>
+                                <span className="text-xs font-bold text-white">{mov.title}</span>
+                              </div>
+                              <span className="text-[10px] font-mono font-bold bg-zinc-900 border border-white/5 px-2.5 py-1 rounded text-zinc-400">
+                                {mov.count} saves
+                              </span>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   </div>
@@ -668,7 +728,7 @@ export default function AdminPage() {
                           <th className="py-3 px-2 text-center">Watchlist</th>
                           <th className="py-3 px-2 text-center">Subscription</th>
                           <th className="py-3 px-2 text-center">Admin Status</th>
-                          <th className="py-3 px-2 text-center">Kujiunga (Siku & Saa)</th>
+                          <th className="py-3 px-2 text-center">Joined Date & Time</th>
                           <th className="py-3 px-2 text-right">Actions</th>
                         </tr>
                       </thead>
@@ -759,15 +819,21 @@ export default function AdminPage() {
                   <div className="bg-[#0D0D0D] border border-white/5 p-6 rounded-3xl shadow-lg">
                     <h3 className="text-sm font-black uppercase tracking-wider text-white mb-4">Highest Interaction Catalogs</h3>
                     <div className="space-y-3">
-                      {getTopMovies().map((m, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-black font-mono text-zinc-600">0{idx+1}</span>
-                            <span className="text-xs font-black text-white">{m.title}</span>
-                          </div>
-                          <span className="text-[10px] font-mono bg-zinc-900 border border-white/10 px-2 py-0.5 rounded text-zinc-400">{m.count * 12 + 24} watchings</span>
+                      {getTopMovies().length === 0 ? (
+                        <div className="text-center py-6 text-xs text-zinc-500 font-bold">
+                          No interaction data yet.
                         </div>
-                      ))}
+                      ) : (
+                        getTopMovies().map((m, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-black font-mono text-zinc-600">0{idx+1}</span>
+                              <span className="text-xs font-black text-white">{m.title}</span>
+                            </div>
+                            <span className="text-[10px] font-mono bg-zinc-900 border border-white/10 px-2 py-0.5 rounded text-zinc-400">{m.count} saves</span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -982,6 +1048,134 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* TIKTOK VIDEOS MANAGEMENT */}
+            {activeSection === 'tiktok-videos' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Form Card */}
+                  <div className="bg-[#0D0D0D] border border-white/5 p-6 rounded-3xl shadow-lg lg:col-span-1 space-y-4 h-fit">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-wider text-white">Add New TikTok Video</h3>
+                      <p className="text-xs text-zinc-500 font-semibold">Integrate TikTok streams directly into the "For You" reels feed</p>
+                    </div>
+
+                    <form onSubmit={handleAddTiktok} className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">Video Title</label>
+                        <input
+                          type="text"
+                          value={newTiktokTitle}
+                          onChange={(e) => setNewTiktokTitle(e.target.value)}
+                          placeholder="e.g. Avatar: Way of Water Cinematic Review"
+                          className="w-full bg-zinc-950 border border-white/5 text-xs text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/35 transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">TikTok Video URL</label>
+                        <input
+                          type="text"
+                          value={newTiktokUrl}
+                          onChange={(e) => setNewTiktokUrl(e.target.value)}
+                          placeholder="https://www.tiktok.com/@user/video/..."
+                          className="w-full bg-zinc-950 border border-white/5 text-xs text-white rounded-xl px-4 py-3 focus:outline-none focus:border-red-500/35 transition-all"
+                        />
+                        <span className="text-[9px] text-zinc-600 block leading-relaxed font-semibold">
+                          Accepts mobile (vm.tiktok.com) and standard formats. Video ID is automatically resolved.
+                        </span>
+                      </div>
+
+                      {tiktokSuccess && (
+                        <div className="bg-green-500/10 border border-green-500/20 text-green-400 p-3 rounded-xl text-xs font-semibold">
+                          {tiktokSuccess}
+                        </div>
+                      )}
+
+                      {tiktokError && (
+                        <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-3 rounded-xl text-xs font-semibold">
+                          {tiktokError}
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-red-600/20 active:scale-[0.98]"
+                      >
+                        <FaPlus size={11} /> Save TikTok Post
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* List/Grid Card */}
+                  <div className="bg-[#0D0D0D] border border-white/5 p-6 rounded-3xl shadow-lg lg:col-span-2 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-black uppercase tracking-wider text-white">Saved TikTok Reels</h3>
+                        <p className="text-xs text-zinc-500 font-semibold">Manage, filter, toggle visibility, and clean up active links</p>
+                      </div>
+                      <span className="text-[10px] bg-red-600/10 border border-red-500/20 text-red-400 px-2.5 py-1 rounded-full font-black tracking-widest uppercase">
+                        {tiktokVideos.length} Posts
+                      </span>
+                    </div>
+
+                    {tiktokLoading ? (
+                      <div className="text-center py-12 text-zinc-500 text-xs animate-pulse font-bold tracking-widest uppercase">
+                        FETCHING TIKTOK RECORDS...
+                      </div>
+                    ) : tiktokVideos.length === 0 ? (
+                      <div className="text-center py-16 border border-dashed border-white/5 rounded-2xl text-xs text-zinc-500 font-semibold">
+                        No TikTok videos saved. Add one using the form on the left!
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2">
+                        {tiktokVideos.map((vid) => (
+                          <div key={vid.id} className="bg-zinc-950 border border-white/5 p-4 rounded-2xl flex flex-col justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[9px] font-mono text-zinc-600 truncate uppercase">ID: {vid.id}</span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className={`w-2 h-2 rounded-full ${vid.active ? 'bg-green-500 animate-pulse' : 'bg-zinc-600'}`} />
+                                  <span className={`text-[9px] font-black uppercase tracking-widest ${vid.active ? 'text-green-400' : 'text-zinc-500'}`}>
+                                    {vid.active ? 'Active' : 'Disabled'}
+                                  </span>
+                                </div>
+                              </div>
+                              <h4 className="text-xs font-black text-white line-clamp-1">{vid.title}</h4>
+                              <p className="text-[10px] text-zinc-500 truncate font-semibold select-all hover:text-zinc-300 transition-colors">
+                                {vid.tiktok_url}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-white/[0.03] gap-2">
+                              {/* Toggle active button */}
+                              <button
+                                onClick={() => handleToggleTiktokActive(vid.id, vid.active)}
+                                className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                                  vid.active
+                                    ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                                    : 'bg-green-600/10 hover:bg-green-600 text-green-400 hover:text-white border border-green-500/15'
+                                }`}
+                              >
+                                {vid.active ? 'Disable' : 'Enable'}
+                              </button>
+
+                              {/* Delete button */}
+                              <button
+                                onClick={() => handleDeleteTiktok(vid.id, vid.title)}
+                                className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/15 transition-all cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 7. SETTINGS */}
             {activeSection === 'settings' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1134,7 +1328,32 @@ VALUES
   ('srv_2', 'Server 2 (Backup Ultra-CDN)', 'https://vidsrc.me/', 'Active (99.8% SLA)', 85),
   ('srv_3', 'Server 3 (Vidsrc.ru Premium Stream Host)', 'https://vidsrc-embed.ru/', 'Active (100% SLA)', 35)
 ON CONFLICT (id) DO UPDATE 
-SET name = EXCLUDED.name, url = EXCLUDED.url, status = EXCLUDED.status, latency = EXCLUDED.latency;`}
+SET name = EXCLUDED.name, url = EXCLUDED.url, status = EXCLUDED.status, latency = EXCLUDED.latency;
+
+-- Create TikTok Videos database table
+CREATE TABLE IF NOT EXISTS public.tiktok_videos (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  tiktok_url TEXT NOT NULL,
+  thumbnail TEXT,
+  likes_count INTEGER DEFAULT 0 NOT NULL,
+  shares_count INTEGER DEFAULT 0 NOT NULL,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Upgrade existing table if it was created without columns
+ALTER TABLE public.tiktok_videos ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0 NOT NULL;
+ALTER TABLE public.tiktok_videos ADD COLUMN IF NOT EXISTS shares_count INTEGER DEFAULT 0 NOT NULL;
+
+-- Enable RLS on tiktok_videos
+ALTER TABLE public.tiktok_videos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read access to tiktok_videos" ON public.tiktok_videos;
+CREATE POLICY "Allow public read access to tiktok_videos" ON public.tiktok_videos FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow admin write access to tiktok_videos" ON public.tiktok_videos;
+CREATE POLICY "Allow admin write access to tiktok_videos" ON public.tiktok_videos FOR ALL USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.is_admin = 1)
+);`}
                     </pre>
                   </div>
                 </div>

@@ -98,19 +98,21 @@ export default function HomePage() {
           resMustWatchSeries,
           resTopSeries,
           resAfricanMovies,
-          resAnimations,
+          resAnimationsMovie,
+          resAnimationsTv,
           resUpcoming1,
           resUpcoming2,
           resPopularFuture1,
           resPopularFuture2
         ] = await Promise.all([
           fetchTmdb('/trending/all/week'),
-          fetchTmdb('/movie/popular'),
+          fetchTmdb('/trending/movie/week'),
           fetchTmdb('/movie/now_playing'),
-          fetchTmdb('/tv/popular'),
+          fetchTmdb('/trending/tv/week'),
           fetchTmdb('/tv/top_rated'),
           fetchTmdb('/discover/movie?with_original_language=sw'),
-          fetchTmdb('/discover/movie?with_genres=16'),
+          fetchTmdb('/discover/movie?with_genres=16&sort_by=popularity.desc'),
+          fetchTmdb('/discover/tv?with_genres=16&sort_by=popularity.desc'),
           fetchTmdb('/movie/upcoming?page=1'),
           fetchTmdb('/movie/upcoming?page=2'),
           fetchTmdb(`/discover/movie?sort_by=popularity.desc&primary_release_date.gte=${todayStr}&page=1`),
@@ -124,7 +126,8 @@ export default function HomePage() {
           dataMustWatchSeries,
           dataTopSeries,
           dataAfricanMovies,
-          dataAnimations,
+          dataAnimationsMovie,
+          dataAnimationsTv,
           dataUpcoming1,
           dataUpcoming2,
           dataPopularFuture1,
@@ -136,7 +139,8 @@ export default function HomePage() {
           resMustWatchSeries.json(),
           resTopSeries.json(),
           resAfricanMovies.json(),
-          resAnimations.json(),
+          resAnimationsMovie.json(),
+          resAnimationsTv.json(),
           resUpcoming1.json(),
           resUpcoming2.json(),
           resPopularFuture1.json(),
@@ -199,11 +203,24 @@ export default function HomePage() {
           }
           setAfricaPride(AF_MOVIES);
           
-          const animResults = formatResults(dataAnimations.results, 'movie').map(item => ({
-            ...item,
-            isAnimation: true
-          }));
-          setAnimations(animResults);
+          const animMovies = formatResults(dataAnimationsMovie.results, 'movie');
+          const animTv = formatResults(dataAnimationsTv.results, 'tv');
+          const combinedAnim = [...animMovies, ...animTv]
+            .filter(item => {
+              if (item.adult) return false;
+              const titleLower = (item.title || item.name || '').toLowerCase();
+              const overviewLower = (item.overview || '').toLowerCase();
+              const adultKeywords = ['hentai', 'ecchi', 'erotic', 'porn', 'nsfw', '18+', 'sex', 'sensual', 'uncensored', 'adult animation', 'lust', 'nudity'];
+              const hasAdultKeyword = adultKeywords.some(keyword => 
+                titleLower.includes(keyword) || overviewLower.includes(keyword)
+              );
+              return !hasAdultKeyword;
+            })
+            .map(item => ({
+              ...item,
+              isAnimation: true
+            })).sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+          setAnimations(combinedAnim);
 
           // Nyuzi za hivi karibuni toka Seva 2 (Vidsrc-embed)
           let vidsrcLatestMovies = [];
@@ -396,14 +413,10 @@ export default function HomePage() {
         <motion.div variants={rowVariants}>
           <TrendingNowCarousel />
         </motion.div>
-        {latestMovies.length > 0 && (
-          <motion.div variants={rowVariants}>
-            <TrendingRow title="Recently Added (Server 2)" items={latestMovies} />
-          </motion.div>
-        )}
+
         {popularMovies.length > 0 && (
           <motion.div variants={rowVariants}>
-            <TrendingRow title="Top 10 Movies This Week" items={popularMovies.slice(0, 10)} useNumbers={true} />
+            <TrendingRow title="Trending Movies This Week" items={popularMovies.slice(0, 10)} useNumbers={true} />
           </motion.div>
         )}
         {upcomingMovies.length > 0 && (
@@ -418,7 +431,7 @@ export default function HomePage() {
         )}
         {mustWatchSeries.length > 0 && (
           <motion.div variants={rowVariants}>
-            <TrendingRow title="Must-Watch Series" items={mustWatchSeries.slice(0, 15)} />
+            <TrendingRow title="Trending Series This Week" items={mustWatchSeries.slice(0, 15)} />
           </motion.div>
         )}
         {topSeries.length > 0 && (

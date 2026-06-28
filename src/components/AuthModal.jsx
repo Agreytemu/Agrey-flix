@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaTimes, FaGoogle, FaEnvelope, FaLock, FaUser, FaSpinner, FaExclamationCircle, FaCheckCircle } from 'react-icons/fa';
 import { BiMoviePlay } from 'react-icons/bi';
 import { supabaseService } from '../utils/supabaseService';
+import { validatePassword, getPasswordStrength, checkRateLimit, logSecurityEvent } from '../utils/security';
 
 const getErrorMessage = (err, isLogin = true) => {
   if (!err) {
     return isLogin 
-      ? 'Kuna tatizo limetokea wakati wa kuingia. Tafadhali jaribu tena.'
-      : 'Kuna tatizo limetokea wakati wa kusajili. Tafadhali jaribu tena.';
+      ? 'An error occurred while logging in. Please try again.'
+      : 'An error occurred while signing up. Please try again.';
   }
 
   // Log to console so that developer can inspect the raw error object
@@ -38,27 +39,27 @@ const getErrorMessage = (err, isLogin = true) => {
   // If msg is empty or generic, use a user-friendly default based on the action
   if (!msg || msg === '{}' || msg === '[object Object]') {
     return isLogin
-      ? 'Kuna hitilafu ya mtandao au mfumo wakati wa kuingia. Hakikisha barua pepe (Email) na nenosiri (Password) ni sahihi.'
-      : 'Kuna hitilafu ya mtandao au mfumo wakati wa kusajili. Hakikisha barua pepe (Email) haijatumika na nenosiri lina herufi zisizopungua 6.';
+      ? 'A network or system error occurred while logging in. Please verify that your email and password are correct.'
+      : 'A network or system error occurred while signing up. Make sure the email is not already in use and the password is at least 6 characters long.';
   }
 
   const lowerMsg = msg.toLowerCase();
 
-  // Swahili + English clean error map
+  // English clean error map
   if (lowerMsg.includes('invalid-email') || lowerMsg.includes('email format is invalid') || lowerMsg.includes('invalid_email')) {
-    return "Barua pepe (Email) haiko sahihi. Tafadhali weka email halisi (mfano: jina@gmail.com).";
+    return "The email address is invalid. Please enter a valid email address (e.g. name@gmail.com).";
   }
   if (lowerMsg.includes('user-not-found') || lowerMsg.includes('invalid login credentials') || lowerMsg.includes('invalid_credentials')) {
-    return "Barua pepe au password si sahihi. Tafadhali kagua vizuri na ujaribu tena.";
+    return "Incorrect email or password. Please verify your credentials and try again.";
   }
   if (lowerMsg.includes('email-already-in-use') || lowerMsg.includes('user already exists') || lowerMsg.includes('email_exists')) {
-    return "Email hii ya barua pepe tayari imesajiliwa kwenye AgreyFlix! Tafadhali nenda kwenye sehemu ya 'Log In' ili kuingia.";
+    return "This email address is already registered on AgreyFlix! Please go to the 'Log In' tab to access your account.";
   }
   if (lowerMsg.includes('weak-password') || lowerMsg.includes('password should be') || lowerMsg.includes('weak_password') || lowerMsg.includes('at least 6 characters')) {
-    return "Nenosiri (Password) lazima liwe na urefu wa herufi au tarakimu zisizopungua sita (6).";
+    return "The password must be at least six (6) characters long.";
   }
   if (lowerMsg.includes('network') || lowerMsg.includes('failed to fetch')) {
-    return "Kuna tatizo la mtandao. Tafadhali kagua muunganisho wako kisha ujaribu tena.";
+    return "A network connection error occurred. Please check your internet connection and try again.";
   }
 
   return msg;
@@ -144,6 +145,23 @@ export default function AuthModal({ isOpen, onClose }) {
     setError('');
     setLoading(true);
 
+    const rateLimitAction = isLogin ? 'login_attempt' : 'signup_attempt';
+    if (!checkRateLimit(rateLimitAction, 5, 60000)) {
+      setError('Too many attempts. Please wait 1 minute before trying again.');
+      logSecurityEvent('ALERT', `Rate limit triggered for action: ${rateLimitAction} on email: ${email}`);
+      setLoading(false);
+      return;
+    }
+
+    if (!isLogin) {
+      const passwordCheck = validatePassword(password);
+      if (!passwordCheck.isValid) {
+        setError(passwordCheck.message);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       if (isLogin) {
         // Sign in with email/password
@@ -152,19 +170,24 @@ export default function AuthModal({ isOpen, onClose }) {
         if (supabaseService.isConfigured && !result.emailVerified) {
           setError('Please verify your email address before logging in. Check your inbox or spam folder.');
           await supabaseService.signOut();
+          setLoading(false);
           return; // Stop early
         }
+        logSecurityEvent('SUCCESS', `User login success: ${email}`);
       } else {
         // Register new user
         const result = await supabaseService.signUp(email, password, name);
 
+        logSecurityEvent('SUCCESS', `User signup success: ${email}`);
         if (result.sessionRequired) {
           setVerificationSent(true);
+          setLoading(false);
           return; // Stop early so we show the success screen
         }
       }
       onClose();
     } catch (err) {
+      logSecurityEvent('FAILURE', `Auth error on ${email}: ${err?.message || err}`);
       setError(getErrorMessage(err, isLogin));
     } finally {
       setLoading(false);
@@ -391,6 +414,45 @@ export default function AuthModal({ isOpen, onClose }) {
                       className="w-full bg-black/20 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500 transition-all font-medium text-sm"
                     />
                   </div>
+
+                  {!isLogin && password && (() => {
+                    const str = getPasswordStrength(password);
+                    return (
+                      <div className="mt-2 text-left bg-black/30 border border-white/5 p-3 rounded-xl">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className="text-[10px] uppercase font-black tracking-wider text-gray-500">Strength:</span>
+                          <span className={`text-[10px] font-black uppercase ${
+                            str.score >= 3 ? 'text-emerald-400' : str.score === 2 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>
+                            {str.label}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex gap-1">
+                          <div className={`h-full flex-1 transition-all duration-300 ${str.score >= 0 ? str.color : 'bg-transparent'}`} />
+                          <div className={`h-full flex-1 transition-all duration-300 ${str.score >= 1 ? str.color : 'bg-white/5'}`} />
+                          <div className={`h-full flex-1 transition-all duration-300 ${str.score >= 2 ? str.color : 'bg-white/5'}`} />
+                          <div className={`h-full flex-1 transition-all duration-300 ${str.score >= 3 ? str.color : 'bg-white/5'}`} />
+                        </div>
+                        <ul className="mt-2 space-y-0.5 text-[9px] text-gray-400 font-medium">
+                          <li className={password.length >= 8 ? 'text-emerald-400 flex items-center gap-1' : 'text-gray-500 flex items-center gap-1'}>
+                            <span>{password.length >= 8 ? '●' : '○'}</span> At least 8-20 characters
+                          </li>
+                          <li className={/[A-Z]/.test(password) ? 'text-emerald-400 flex items-center gap-1' : 'text-gray-500 flex items-center gap-1'}>
+                            <span>{/[A-Z]/.test(password) ? '●' : '○'}</span> At least one uppercase letter
+                          </li>
+                          <li className={/[a-z]/.test(password) ? 'text-emerald-400 flex items-center gap-1' : 'text-gray-500 flex items-center gap-1'}>
+                            <span>{/[a-z]/.test(password) ? '●' : '○'}</span> At least one lowercase letter
+                          </li>
+                          <li className={/\d/.test(password) ? 'text-emerald-400 flex items-center gap-1' : 'text-gray-500 flex items-center gap-1'}>
+                            <span>{/\d/.test(password) ? '●' : '○'}</span> At least one number
+                          </li>
+                          <li className={/[^A-Za-z0-9]/.test(password) ? 'text-emerald-400 flex items-center gap-1' : 'text-gray-500 flex items-center gap-1'}>
+                            <span>{/[^A-Za-z0-9]/.test(password) ? '●' : '○'}</span> At least one special character
+                          </li>
+                        </ul>
+                      </div>
+                    );
+                  })()}
 
                   {isLogin && (
                     <div className="flex justify-end -mt-1">

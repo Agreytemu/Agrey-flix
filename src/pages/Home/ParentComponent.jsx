@@ -4,7 +4,7 @@ import Sidebar from './Sidebar';
 import AuthModal from '../../components/AuthModal';
 import AgreyFlixLoader from '../../components/AgreyFlixLoader';
 import { AnimatePresence } from 'framer-motion';
-import { FaBars, FaSearch } from 'react-icons/fa';
+import { FaBars, FaSearch, FaHeart } from 'react-icons/fa';
 import { BiMoviePlay } from 'react-icons/bi';
 
 export default function ParentComponent() {
@@ -66,6 +66,15 @@ export default function ParentComponent() {
               </span>
            </div>
            <div className="flex items-center gap-2 pointer-events-auto">
+             <button 
+               onClick={() => navigate('/for-you')}
+               className="h-10 px-4 rounded-full bg-black border border-white/10 hover:bg-zinc-900 text-white backdrop-blur-md flex items-center justify-center gap-1.5 active:scale-95 transition-all outline-none font-black text-xs uppercase tracking-wider"
+               title="For You"
+               id="mobile-foryou-btn"
+             >
+               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+               For You
+             </button>
              <button 
                onClick={() => navigate('/search')}
                className="w-10 h-10 rounded-full bg-black/50 border border-white/10 backdrop-blur-md flex items-center justify-center text-white active:scale-95 transition-all outline-none"

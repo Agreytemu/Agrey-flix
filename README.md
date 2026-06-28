@@ -73,17 +73,34 @@ A modern movie and TV show streaming discovery app built with **React 18**, **Vi
    VITE_TMDB_API=your_tmdb_api_key_here
    VITE_BASE_URL=https://api.themoviedb.org/3
 
-   # Firebase Configuration
-   VITE_FIREBASE_API_KEY=your_firebase_api_key
-   VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=your_project_id
-   VITE_FIREBASE_STORAGE_BUCKET=your_project_id.firebasestorage.app
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   VITE_FIREBASE_APP_ID=your_app_id
-   VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+   # Supabase Configuration (Authentication & Profiles DB)
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
    > The app uses Vite's `import.meta.env` — variable names **must** start with `VITE_`.
+
+### Supabase Database Setup
+
+To configure your Supabase database tables to support **Continue Watching** and **Watchlist**, follow these steps:
+
+1. Go to your **Supabase Dashboard** (https://supabase.com).
+2. Open the **SQL Editor** tab from the left sidebar.
+3. Click **New Query** and paste the contents of the `supabase_setup.sql` file.
+4. Click **Run** to execute the setup script.
+
+This will automatically create:
+- The `public.profiles` table with the following structure:
+  - `id` (UUID references auth.users)
+  - `email` (TEXT)
+  - `display_name` (TEXT)
+  - `photo_url` (TEXT)
+  - `watchlist` (JSONB)
+  - `continue_watching` (JSONB) — *Saves media items that the user is currently watching along with the playback progress.*
+  - `preferences_set` (BOOLEAN)
+  - `preferences` (JSONB)
+- A trigger function `public.handle_new_user()` which listens for new users signing up and automatically inserts a matching profile row into the `public.profiles` table.
+- Row-Level Security (RLS) policies to ensure users can only view and update their own profiles.
 
 4. **Start the development server:**
    ```bash

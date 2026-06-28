@@ -18,7 +18,7 @@ export default function TrendingPage() {
   const [isSearchingTmdb, setIsSearchingTmdb] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all'); // 'all', 'movie', 'tv'
   const [ratingFilter, setRatingFilter] = useState('all'); // 'all', 'high' (>= 75%)
-  const [sortBy, setSortBy] = useState('popularity'); // 'popularity', 'vote_average', 'release_date'
+  const [sortBy, setSortBy] = useState('vote_average'); // 'popularity', 'vote_average', 'release_date'
 
   // Fetch multiple pages of trending content
   const loadTrendingData = useCallback(async (pagesToLoad = 6) => {

@@ -28,6 +28,7 @@ import AndroidDownloadPage from './pages/Home/AndroidDownloadPage';
 import ComputerDownloadPage from './pages/Home/ComputerDownloadPage';
 import AdminPage from './pages/Home/AdminPage';
 import ProfilePage from './pages/Home/ProfilePage';
+import ForYouPage from './pages/Home/ForYouPage';
 
 function App() {
   useEffect(() => {
@@ -67,6 +68,7 @@ function App() {
         <Route element={<ParentComponent />}>
           <Route element={<OnboardingGuard />}>
             <Route path="/home" element={<HomePage />} />
+            <Route path="/for-you" element={<ForYouPage />} />
             <Route path="/movies" element={<Movie />} />
             <Route path="/movies/:genreSlug" element={<Movie />} />
             <Route path="/movies/:genreSlug/:sortSlug" element={<Movie />} />

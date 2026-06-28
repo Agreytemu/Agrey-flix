@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { FaSearch, FaHome, FaFilm, FaTv, FaChartLine, FaPlus, FaSignOutAlt, FaMagic, FaGlobeAfrica, FaAward, FaCalendarAlt, FaShieldAlt, FaBell, FaTimes, FaCircle, FaCheckCircle, FaUser } from 'react-icons/fa';
+import { FaSearch, FaHome, FaFilm, FaTv, FaChartLine, FaPlus, FaSignOutAlt, FaMagic, FaGlobeAfrica, FaAward, FaCalendarAlt, FaShieldAlt, FaBell, FaTimes, FaCircle, FaCheckCircle, FaUser, FaHeart } from 'react-icons/fa';
 import { BiMoviePlay } from 'react-icons/bi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProfile } from '../../context/ProfileContext';
@@ -73,6 +73,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const navItems = [
     { icon: FaSearch, path: '/search', label: 'Search' },
+    { icon: FaHeart, path: '/for-you', label: 'For You' },
     { icon: FaHome, path: '/home', label: 'Home' },
     { icon: FaFilm, path: '/movies', label: 'Movies' },
     { icon: FaTv, path: '/series', label: 'TV Shows' },

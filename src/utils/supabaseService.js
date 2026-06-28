@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sanitizeInput, logSecurityEvent, validatePassword } from './security';
 
 // Retrieve environment variables safely
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -33,6 +34,26 @@ const notifyListeners = (user) => {
   listeners.forEach(cb => {
     try { cb(user); } catch (e) { console.error('Auth listener callback failed:', e); }
   });
+};
+
+/**
+ * Enforces admin authorization. Throws an error if current session user is not an admin.
+ */
+export const verifyAdmin = () => {
+  if (!currentSessionUser) {
+    logSecurityEvent('FAILURE', 'Unauthorized administrative access attempt: No active session.');
+    throw new Error('Authentication required. Access denied.');
+  }
+  const isAdmin = 
+    currentSessionUser.email?.toLowerCase() === 'webbrowsera@gmail.com' ||
+    currentSessionUser.is_admin === 1 ||
+    currentSessionUser.is_admin === true ||
+    currentSessionUser.isAdmin === true;
+    
+  if (!isAdmin) {
+    logSecurityEvent('FAILURE', `Unauthorized administrative access attempt by: ${currentSessionUser.email}`);
+    throw new Error('Administrator privileges required. Access denied.');
+  }
 };
 
 // ==========================================
@@ -371,7 +392,17 @@ export const supabaseService = {
   updateProfile: async (updates) => {
     if (!currentSessionUser) return;
 
-    const mergedUser = { ...currentSessionUser, ...updates };
+    // Sanitize any string values inside updates to protect against XSS
+    const sanitizedUpdates = {};
+    for (const key in updates) {
+      if (typeof updates[key] === 'string') {
+        sanitizedUpdates[key] = sanitizeInput(updates[key]);
+      } else {
+        sanitizedUpdates[key] = updates[key];
+      }
+    }
+
+    const mergedUser = { ...currentSessionUser, ...sanitizedUpdates };
 
     if (isConfigured && supabase) {
       // 1. Update auth user metadata
@@ -381,7 +412,7 @@ export const supabaseService = {
           photoURL: mergedUser.photoURL,
           preferencesSet: mergedUser.preferencesSet,
           preferences: mergedUser.preferences,
-          ...updates
+          ...sanitizedUpdates
         }
       });
       if (error) throw error;
@@ -572,15 +603,20 @@ export const supabaseService = {
    * Send a new notification (Admin only).
    */
   sendNotification: async (title, message, type = 'system', targetAudience = 'all') => {
+    verifyAdmin(); // Secure administrative endpoint
+    const cleanTitle = sanitizeInput(title);
+    const cleanMessage = sanitizeInput(message);
+
     if (isConfigured && supabase) {
       try {
         // First try to insert with dedicated target_audience column if it exists
         const { data, error } = await supabase
           .from('notifications')
-          .insert([{ title, message, type, target_audience: targetAudience }])
+          .insert([{ title: cleanTitle, message: cleanMessage, type, target_audience: targetAudience }])
           .select();
         
         if (!error) {
+          logSecurityEvent('SUCCESS', `Admin sent notification: ${cleanTitle}`);
           return data?.[0];
         } else {
           // If the error indicates target_audience is invalid column, proceed to fallback
@@ -594,10 +630,11 @@ export const supabaseService = {
       const encodedType = targetAudience === 'subscribers' ? `${type}:subscribers` : type;
       const { data, error } = await supabase
         .from('notifications')
-        .insert([{ title, message, type: encodedType }])
+        .insert([{ title: cleanTitle, message: cleanMessage, type: encodedType }])
         .select();
       
       if (error) throw error;
+      logSecurityEvent('SUCCESS', `Admin sent notification (fallback): ${cleanTitle}`);
       return data?.[0];
     } else {
       try {
@@ -614,8 +651,8 @@ export const supabaseService = {
         ];
         const newNotif = {
           id: 'notif_' + Math.random().toString(36).substring(2, 11),
-          title,
-          message,
+          title: cleanTitle,
+          message: cleanMessage,
           type,
           target_audience: targetAudience,
           created_at: new Date().toISOString()
@@ -623,6 +660,7 @@ export const supabaseService = {
         const updated = [newNotif, ...list];
         localStorage.setItem('agreyflix_notifications', JSON.stringify(updated));
         window.dispatchEvent(new Event('newNotification'));
+        logSecurityEvent('SUCCESS', `Admin sent notification locally: ${cleanTitle}`);
         return newNotif;
       } catch (e) {
         console.error('Failed to save mock notification:', e);
@@ -635,12 +673,14 @@ export const supabaseService = {
    * Delete a notification (Admin only).
    */
   deleteNotification: async (id) => {
+    verifyAdmin(); // Secure administrative endpoint
     if (isConfigured && supabase) {
       const { error } = await supabase
         .from('notifications')
         .delete()
         .eq('id', id);
       if (error) throw error;
+      logSecurityEvent('ALERT', `Admin deleted notification: ${id}`);
       return true;
     } else {
       try {
@@ -649,6 +689,7 @@ export const supabaseService = {
         const updated = list.filter(item => item.id !== id);
         localStorage.setItem('agreyflix_notifications', JSON.stringify(updated));
         window.dispatchEvent(new Event('newNotification'));
+        logSecurityEvent('ALERT', `Admin deleted notification locally: ${id}`);
         return true;
       } catch (e) {
         console.error('Failed to delete mock notification:', e);
@@ -661,6 +702,7 @@ export const supabaseService = {
    * Fetch all user profiles (Admin only).
    */
   getAllProfiles: async () => {
+    verifyAdmin(); // Secure administrative endpoint
     if (isConfigured && supabase) {
       const { data, error } = await supabase
         .from('profiles')
@@ -691,6 +733,7 @@ export const supabaseService = {
    * Update a user's admin status (Admin only).
    */
   updateUserAdminStatus: async (userId, isAdminValue) => {
+    verifyAdmin(); // Secure administrative endpoint
     const is_admin = isAdminValue ? 1 : 0;
     if (isConfigured && supabase) {
       const { error } = await supabase
@@ -698,6 +741,7 @@ export const supabaseService = {
         .update({ is_admin })
         .eq('id', userId);
       if (error) throw error;
+      logSecurityEvent('AUDIT', `Admin updated user role of ${userId} to is_admin=${is_admin}`);
       return true;
     } else {
       const users = getMockUsers();
@@ -715,6 +759,7 @@ export const supabaseService = {
           saveMockSession(currentSessionUser);
           notifyListeners(currentSessionUser);
         }
+        logSecurityEvent('AUDIT', `Admin updated user role locally of ${userId} to is_admin=${is_admin}`);
         return true;
       }
       throw new Error('User not found');
@@ -725,6 +770,7 @@ export const supabaseService = {
    * Update a user's subscription status (Admin only).
    */
   updateUserSubscriptionStatus: async (userId, isSubscribed) => {
+    verifyAdmin(); // Secure administrative endpoint
     const is_subscribed = isSubscribed ? 1 : 0;
     if (isConfigured && supabase) {
       const { error } = await supabase
@@ -732,6 +778,7 @@ export const supabaseService = {
         .update({ is_subscribed, isSubscribed: !!isSubscribed })
         .eq('id', userId);
       if (error) throw error;
+      logSecurityEvent('AUDIT', `Admin updated subscription status of ${userId} to is_subscribed=${is_subscribed}`);
       return true;
     } else {
       const users = getMockUsers();
@@ -742,6 +789,7 @@ export const supabaseService = {
         users[userKey].isSubscribed = !!isSubscribed;
         users[userKey].is_subscribed = is_subscribed;
         saveMockUsers(users);
+        logSecurityEvent('AUDIT', `Admin updated subscription status locally of ${userId} to is_subscribed=${is_subscribed}`);
         return true;
       }
       throw new Error('User not found');
@@ -752,12 +800,14 @@ export const supabaseService = {
    * Archive a user profile (Soft Delete - Admin only).
    */
   archiveProfile: async (userId) => {
+    verifyAdmin(); // Secure administrative endpoint
     if (isConfigured && supabase) {
       const { error } = await supabase
         .from('profiles')
         .update({ is_archived: 1 })
         .eq('id', userId);
       if (error) throw error;
+      logSecurityEvent('AUDIT', `Admin soft-deleted (archived) user profile: ${userId}`);
       return true;
     } else {
       const users = getMockUsers();
@@ -767,6 +817,7 @@ export const supabaseService = {
       if (userKey) {
         users[userKey].is_archived = 1;
         saveMockUsers(users);
+        logSecurityEvent('AUDIT', `Admin soft-deleted (archived) user profile locally: ${userId}`);
         return true;
       }
       throw new Error('User not found');
@@ -777,12 +828,14 @@ export const supabaseService = {
    * Restore an archived user profile (Admin only).
    */
   restoreProfile: async (userId) => {
+    verifyAdmin(); // Secure administrative endpoint
     if (isConfigured && supabase) {
       const { error } = await supabase
         .from('profiles')
         .update({ is_archived: 0 })
         .eq('id', userId);
       if (error) throw error;
+      logSecurityEvent('AUDIT', `Admin restored soft-deleted user profile: ${userId}`);
       return true;
     } else {
       const users = getMockUsers();
@@ -792,6 +845,7 @@ export const supabaseService = {
       if (userKey) {
         users[userKey].is_archived = 0;
         saveMockUsers(users);
+        logSecurityEvent('AUDIT', `Admin restored soft-deleted user profile locally: ${userId}`);
         return true;
       }
       throw new Error('User not found');
@@ -802,12 +856,14 @@ export const supabaseService = {
    * Delete a user profile (Admin only).
    */
   deleteProfile: async (userId) => {
+    verifyAdmin(); // Secure administrative endpoint
     if (isConfigured && supabase) {
       const { error } = await supabase
         .from('profiles')
         .delete()
         .eq('id', userId);
       if (error) throw error;
+      logSecurityEvent('ALERT', `Admin permanently deleted user profile: ${userId}`);
       return true;
     } else {
       const users = getMockUsers();
@@ -817,6 +873,7 @@ export const supabaseService = {
       if (userKey) {
         delete users[userKey];
         saveMockUsers(users);
+        logSecurityEvent('ALERT', `Admin permanently deleted user profile locally: ${userId}`);
         return true;
       }
       throw new Error('User not found');
@@ -827,6 +884,7 @@ export const supabaseService = {
    * Get user submitted reports (Admin only).
    */
   getReports: async () => {
+    verifyAdmin(); // Secure administrative endpoint
     if (isConfigured && supabase) {
       try {
         const { data, error } = await supabase
@@ -914,12 +972,12 @@ export const supabaseService = {
   createReport: async (reportData) => {
     const newReport = {
       id: 'rep_' + Math.random().toString(36).substring(2, 11),
-      title: reportData.title || 'Unknown Media',
+      title: sanitizeInput(reportData.title || 'Unknown Media'),
       media_id: String(reportData.mediaId || ''),
       type: reportData.type || 'movie',
       issue_type: reportData.issueType || 'broken_video',
-      details: reportData.details || '',
-      reporter_email: reportData.reporterEmail || 'anonymous@agreyflix.com',
+      details: sanitizeInput(reportData.details || ''),
+      reporter_email: sanitizeInput(reportData.reporterEmail || 'anonymous@agreyflix.com'),
       status: 'pending',
       admin_response: '',
       created_at: new Date().toISOString()
@@ -953,11 +1011,14 @@ export const supabaseService = {
    * Update report status / response (Admin only).
    */
   updateReportStatus: async (reportId, status, adminResponse = '') => {
+    verifyAdmin(); // Secure this administrative endpoint
+    const cleanResponse = sanitizeInput(adminResponse);
+
     if (isConfigured && supabase) {
       try {
         const { data, error } = await supabase
           .from('reports')
-          .update({ status, admin_response: adminResponse })
+          .update({ status, admin_response: cleanResponse })
           .eq('id', reportId)
           .select();
         if (!error) return data?.[0];
@@ -971,7 +1032,7 @@ export const supabaseService = {
       const list = saved ? JSON.parse(saved) : [];
       const updated = list.map(item => {
         if (item.id === reportId) {
-          return { ...item, status, admin_response: adminResponse };
+          return { ...item, status, admin_response: cleanResponse };
         }
         return item;
       });
@@ -1025,9 +1086,11 @@ export const supabaseService = {
    * Update server status / latency (Admin only).
    */
   updateServerLatency: async (serverId, latency, status = null) => {
+    verifyAdmin(); // Secure administrative endpoint
+    const cleanStatus = status ? sanitizeInput(status) : null;
     const updatePayload = { latency, updated_at: new Date().toISOString() };
-    if (status) {
-      updatePayload.status = status;
+    if (cleanStatus) {
+      updatePayload.status = cleanStatus;
     }
 
     if (isConfigured && supabase) {
@@ -1056,6 +1119,315 @@ export const supabaseService = {
       return true;
     } catch (e) {
       console.error('Failed to update server:', e);
+      throw e;
+    }
+  },
+
+  /**
+   * TikTok Videos Methods
+   */
+  getTikTokVideos: async () => {
+    const defaultVideos = [
+      {
+        id: 'tk_demo1',
+        title: 'AgreyFlix Streaming Showcase',
+        tiktok_url: 'https://www.tiktok.com/@netflix/video/7339891083984162094',
+        thumbnail: '',
+        likes_count: 324,
+        shares_count: 56,
+        active: true,
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString()
+      },
+      {
+        id: 'tk_demo2',
+        title: 'New Movie Trailer Teaser',
+        tiktok_url: 'https://www.tiktok.com/@netflix/video/7342083103444159787',
+        thumbnail: '',
+        likes_count: 156,
+        shares_count: 12,
+        active: true,
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
+      },
+      {
+        id: 'tk_demo3',
+        title: 'Action Series Cinematic Review',
+        tiktok_url: 'https://www.tiktok.com/@netflix/video/7325605481747041579',
+        thumbnail: '',
+        likes_count: 512,
+        shares_count: 98,
+        active: true,
+        created_at: new Date().toISOString()
+      }
+    ];
+
+    if (isConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('tiktok_videos')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) {
+          if (data.length === 0) {
+            try {
+              await supabase.from('tiktok_videos').insert(defaultVideos);
+              return defaultVideos;
+            } catch (seedErr) {
+              console.warn('Failed to seed default TikTok videos into Supabase:', seedErr);
+              return defaultVideos;
+            }
+          }
+          return data.map(v => ({
+            ...v,
+            likes_count: v.likes_count || 0,
+            shares_count: v.shares_count || 0
+          }));
+        }
+        console.warn('tiktok_videos query error, falling back to local storage:', error);
+      } catch (err) {
+        console.warn('Could not fetch tiktok_videos from Supabase, using local storage.');
+      }
+    }
+
+    try {
+      const saved = localStorage.getItem('agreyflix_tiktok_videos');
+      if (saved) {
+        return JSON.parse(saved).map(v => ({
+          ...v,
+          likes_count: v.likes_count || 0,
+          shares_count: v.shares_count || 0
+        }));
+      } else {
+        localStorage.setItem('agreyflix_tiktok_videos', JSON.stringify(defaultVideos));
+        return defaultVideos;
+      }
+    } catch (e) {
+      console.error('Failed to retrieve tiktok_videos:', e);
+      return defaultVideos;
+    }
+  },
+
+  createTikTokVideo: async (videoData) => {
+    verifyAdmin(); // Secure administrative endpoint
+    const id = 'tk_' + Math.random().toString(36).substring(2, 11);
+    const created_at = new Date().toISOString();
+    
+    const cleanTitle = sanitizeInput(videoData.title || 'Untitled Video');
+    const cleanUrl = sanitizeInput(videoData.tiktok_url || videoData.tiktokUrl || '');
+    const cleanThumbnail = sanitizeInput(videoData.thumbnail || '');
+
+    const dbPayloadFull = {
+      id,
+      title: cleanTitle,
+      tiktok_url: cleanUrl,
+      thumbnail: cleanThumbnail,
+      likes_count: 0,
+      shares_count: 0,
+      active: videoData.active !== undefined ? videoData.active : true,
+      created_at
+    };
+
+    const dbPayloadSimple = {
+      id,
+      title: cleanTitle,
+      tiktok_url: cleanUrl,
+      thumbnail: cleanThumbnail,
+      active: videoData.active !== undefined ? videoData.active : true,
+      created_at
+    };
+
+    if (isConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('tiktok_videos')
+          .insert([dbPayloadFull])
+          .select();
+        
+        if (!error && data) {
+          logSecurityEvent('SUCCESS', `Admin created TikTok Video: ${cleanTitle}`);
+          return data[0];
+        }
+
+        // If the error indicates missing likes_count or shares_count column (Postgres error 42703)
+        if (error && (error.code === '42703' || (error.message && error.message.toLowerCase().includes('column')))) {
+          console.warn('Supabase tiktok_videos table lacks likes_count or shares_count column. Retrying with simpler payload...');
+          const { data: retryData, error: retryError } = await supabase
+            .from('tiktok_videos')
+            .insert([dbPayloadSimple])
+            .select();
+          
+          if (!retryError && retryData) {
+            logSecurityEvent('SUCCESS', `Admin created TikTok Video (simple payload): ${cleanTitle}`);
+            return {
+              ...retryData[0],
+              likes_count: 0,
+              shares_count: 0
+            };
+          }
+          if (retryError) throw retryError;
+        }
+        if (error) throw error;
+      } catch (err) {
+        console.warn('Could not write tiktok_videos to Supabase, falling back to local storage:', err);
+      }
+    }
+
+    try {
+      const saved = localStorage.getItem('agreyflix_tiktok_videos');
+      const list = saved ? JSON.parse(saved) : [];
+      const updated = [dbPayloadFull, ...list];
+      localStorage.setItem('agreyflix_tiktok_videos', JSON.stringify(updated));
+      logSecurityEvent('SUCCESS', `Admin created TikTok Video locally: ${cleanTitle}`);
+      return dbPayloadFull;
+    } catch (e) {
+      console.error('Failed to create tiktok_video:', e);
+      throw e;
+    }
+  },
+
+  updateTikTokVideoActive: async (id, active) => {
+    verifyAdmin(); // Secure administrative endpoint
+    if (isConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('tiktok_videos')
+          .update({ active })
+          .eq('id', id)
+          .select();
+        if (!error) {
+          logSecurityEvent('AUDIT', `Admin toggled active state on TikTok video ID: ${id} to ${active}`);
+          return data?.[0];
+        }
+        console.warn('Could not update tiktok_videos in Supabase, using local storage.');
+      } catch (err) {
+        console.warn('Could not update tiktok_videos in Supabase, using local storage.');
+      }
+    }
+
+    try {
+      const saved = localStorage.getItem('agreyflix_tiktok_videos');
+      const list = saved ? JSON.parse(saved) : [];
+      const updated = list.map(item => {
+        if (item.id === id) {
+          return { ...item, active };
+        }
+        return item;
+      });
+      localStorage.setItem('agreyflix_tiktok_videos', JSON.stringify(updated));
+      logSecurityEvent('AUDIT', `Admin toggled active state locally on TikTok video ID: ${id} to ${active}`);
+      return true;
+    } catch (e) {
+      console.error('Failed to update tiktok_video:', e);
+      throw e;
+    }
+  },
+
+  deleteTikTokVideo: async (id) => {
+    verifyAdmin(); // Secure administrative endpoint
+    if (isConfigured && supabase) {
+      try {
+        const { error } = await supabase
+          .from('tiktok_videos')
+          .delete()
+          .eq('id', id);
+        if (!error) {
+          logSecurityEvent('ALERT', `Admin deleted TikTok video ID: ${id}`);
+          return true;
+        }
+        console.warn('Could not delete tiktok_videos from Supabase, using local storage.');
+      } catch (err) {
+        console.warn('Could not delete tiktok_videos from Supabase, using local storage.');
+      }
+    }
+
+    try {
+      const saved = localStorage.getItem('agreyflix_tiktok_videos');
+      const list = saved ? JSON.parse(saved) : [];
+      const updated = list.filter(item => item.id !== id);
+      localStorage.setItem('agreyflix_tiktok_videos', JSON.stringify(updated));
+      logSecurityEvent('ALERT', `Admin deleted TikTok video locally ID: ${id}`);
+      return true;
+    } catch (e) {
+      console.error('Failed to delete tiktok_video:', e);
+      throw e;
+    }
+  },
+
+  incrementTikTokLikes: async (id, step) => {
+    if (isConfigured && supabase) {
+      try {
+        const { data: current, error: fetchErr } = await supabase
+          .from('tiktok_videos')
+          .select('likes_count')
+          .eq('id', id)
+          .single();
+        if (!fetchErr && current) {
+          const newLikes = Math.max(0, (current.likes_count || 0) + step);
+          const { data, error } = await supabase
+            .from('tiktok_videos')
+            .update({ likes_count: newLikes })
+            .eq('id', id)
+            .select();
+          if (!error) return data?.[0];
+        }
+      } catch (err) {
+        console.warn('Could not increment tiktok_videos likes in Supabase, using local storage.');
+      }
+    }
+
+    try {
+      const saved = localStorage.getItem('agreyflix_tiktok_videos');
+      const list = saved ? JSON.parse(saved) : [];
+      const updated = list.map(item => {
+        if (item.id === id) {
+          const newLikes = Math.max(0, (item.likes_count || 0) + step);
+          return { ...item, likes_count: newLikes };
+        }
+        return item;
+      });
+      localStorage.setItem('agreyflix_tiktok_videos', JSON.stringify(updated));
+      return true;
+    } catch (e) {
+      console.error('Failed to increment tiktok_video likes:', e);
+      throw e;
+    }
+  },
+
+  incrementTikTokShares: async (id) => {
+    if (isConfigured && supabase) {
+      try {
+        const { data: current, error: fetchErr } = await supabase
+          .from('tiktok_videos')
+          .select('shares_count')
+          .eq('id', id)
+          .single();
+        if (!fetchErr && current) {
+          const newShares = (current.shares_count || 0) + 1;
+          const { data, error } = await supabase
+            .from('tiktok_videos')
+            .update({ shares_count: newShares })
+            .eq('id', id)
+            .select();
+          if (!error) return data?.[0];
+        }
+      } catch (err) {
+        console.warn('Could not increment tiktok_videos shares in Supabase, using local storage.');
+      }
+    }
+
+    try {
+      const saved = localStorage.getItem('agreyflix_tiktok_videos');
+      const list = saved ? JSON.parse(saved) : [];
+      const updated = list.map(item => {
+        if (item.id === id) {
+          const newShares = (item.shares_count || 0) + 1;
+          return { ...item, shares_count: newShares };
+        }
+        return item;
+      });
+      localStorage.setItem('agreyflix_tiktok_videos', JSON.stringify(updated));
+      return true;
+    } catch (e) {
+      console.error('Failed to increment tiktok_video shares:', e);
       throw e;
     }
   }

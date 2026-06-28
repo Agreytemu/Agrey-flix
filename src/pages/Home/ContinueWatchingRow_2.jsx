@@ -153,8 +153,6 @@ export default function ContinueWatchingRow_2() {
     navigate(`/${item.type === 'tv' ? 'series' : 'movies'}/watch/${item.slug || item.mediaId}`);
   };
 
-  if (continueWatching.length === 0) return null;
-
   return (
     <section className="px-4 sm:px-6 md:px-12 py-8 relative z-20">
       <div className="max-w-7xl mx-auto">
@@ -162,22 +160,40 @@ export default function ContinueWatchingRow_2() {
           <span className="w-1.5 h-6 bg-red-500 rounded-full inline-block"></span>
           Continue Watching
         </h3>
-        <div
-          ref={listRef}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseLeave={endDrag}
-          className={`flex gap-4 overflow-x-auto hide-scrollbar pb-6 -mx-4 px-4 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-        >
-          {continueWatching.map((item) => (
-            <ContinueWatchingCard 
-              key={item.mediaId} 
-              item={item} 
-              handleCardClick={handleCardClick} 
-              handleRemove={handleRemove} 
-            />
-          ))}
-        </div>
+        
+        {continueWatching.length === 0 ? (
+          <div className="bg-gradient-to-r from-zinc-950 to-[#0D0D0D] border border-white/5 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-1 text-center sm:text-left">
+              <p className="text-sm font-bold text-zinc-200">You haven't started watching anything recently</p>
+              <p className="text-xs text-zinc-500 font-semibold">Once you start watching any movie or show, they will automatically appear here so you can continue where you left off!</p>
+            </div>
+            <button 
+              onClick={() => {
+                window.scrollTo({ top: window.innerHeight * 0.75, behavior: 'smooth' });
+              }}
+              className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-white/5 rounded-xl text-xs font-black uppercase text-white tracking-wider cursor-pointer transition-all shrink-0"
+            >
+              Explore Content
+            </button>
+          </div>
+        ) : (
+          <div
+            ref={listRef}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseLeave={endDrag}
+            className={`flex gap-4 overflow-x-auto hide-scrollbar pb-6 -mx-4 px-4 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          >
+            {continueWatching.map((item) => (
+              <ContinueWatchingCard 
+                key={item.mediaId} 
+                item={item} 
+                handleCardClick={handleCardClick} 
+                handleRemove={handleRemove} 
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
