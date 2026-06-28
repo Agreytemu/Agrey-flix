@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 import { fetchTmdb } from '../../utils/tmdb';
 import { FaChevronRight, FaPlay, FaFilm, FaTv, FaBolt, FaInfinity } from 'react-icons/fa';
 import { BiMoviePlay } from 'react-icons/bi';
@@ -83,6 +84,12 @@ export default function LandingPage() {
 
   return (
     <div className="relative min-h-screen bg-[#050505] text-white flex flex-col justify-between overflow-hidden font-sans select-none">
+      <Helmet>
+        <title>AgreyFlix | Unlimited Premium Streaming Hub</title>
+        <meta name="description" content="Stream high-speed cloud content, premium Swahili voice-overs, and optimized multi-threaded downloads on AgreyFlix without ad interruptions." />
+        <meta name="keywords" content="AgreyFlix, streaming platform, watch movies, watch series online, Swahili translations, download movies offline" />
+        <link rel="canonical" href="https://agrey-flix.vercel.app/" />
+      </Helmet>
       
       {/* 1. MOVIE POSTERS BACKDROP GRID */}
       <div className="absolute inset-0 z-0 overflow-hidden opacity-100">
@@ -213,8 +220,19 @@ export default function LandingPage() {
         </div>
         
         {/* Signature details */}
-        <div className="bg-[#050505] pb-8 pt-2 px-6 text-center text-zinc-700 font-bold text-[10px] tracking-widest uppercase">
-          AGREYFLIX MEDIA SERVICE © 2026 • BUILT FOR EXCEPTIONAL DISCOVERIES
+        <div className="bg-[#050505] pb-8 pt-2 px-6 text-center space-y-4">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[10px] font-black uppercase tracking-wider text-zinc-500">
+            <Link to="/about" className="hover:text-red-500 transition-colors">About Us</Link>
+            <span className="text-zinc-800 select-none">•</span>
+            <Link to="/contact" className="hover:text-red-500 transition-colors">Contact Us</Link>
+            <span className="text-zinc-800 select-none">•</span>
+            <Link to="/privacy" className="hover:text-red-500 transition-colors">Privacy Policy</Link>
+            <span className="text-zinc-800 select-none">•</span>
+            <Link to="/terms" className="hover:text-red-500 transition-colors">Terms & Conditions</Link>
+          </div>
+          <div className="text-zinc-700 font-bold text-[9px] tracking-widest uppercase">
+            AGREYFLIX MEDIA SERVICE © 2026 • BUILT FOR EXCEPTIONAL DISCOVERIES
+          </div>
         </div>
       </footer>
 

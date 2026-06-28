@@ -1,11 +1,15 @@
 {
   "rewrites": [
     {
+      "source": "/googlefcad10a31e680c35.html",
+      "destination": "/googlefcad10a31e680c35.html"
+    },
+    {
       "source": "/sw.js",
       "destination": "/sw.js"
     },
     {
-      "source": "/((?!sw\\.js|manifest\\.json|robots\\.txt|sitemap\\.xml|.*\\.svg|.*\\.png|.*\\.ico|.*\\.txt|.*\\.xml).*)",
+      "source": "/((?!sw\\.js|manifest\\.json|robots\\.txt|sitemap\\.xml|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.ico|.*\\.txt|.*\\.xml|.*\\.html).*)",
       "destination": "/index.html"
     }
   ],

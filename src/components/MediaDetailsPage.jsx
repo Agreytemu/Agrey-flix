@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaPlay, FaPlus, FaCheck, FaStar, FaCalendarAlt, 
@@ -491,6 +492,66 @@ ${appUrl}`;
     ? `Season ${activeSeason} - Episode ${activeEpisode}` 
     : runtime ? `${Math.floor(runtime / 60)}h ${runtime % 60}m` : '';
 
+  const releaseYear = details?.release_date 
+    ? new Date(details.release_date).getFullYear() 
+    : details?.first_air_date 
+      ? new Date(details.first_air_date).getFullYear() 
+      : '';
+  
+  const pageTitle = currentMediaTitle 
+    ? `${currentMediaTitle} ${releaseYear ? `(${releaseYear})` : ''} ${type === 'tv' ? `- ${subTitleText}` : ''} | Watch on AgreyFlix` 
+    : 'Watch Premium Video Online | AgreyFlix';
+
+  const pageDesc = details?.overview 
+    ? details.overview.substring(0, 160) + '...' 
+    : 'Watch premium cinematic quality streams, tv series, and movies online with high-speed connections.';
+
+  const canonicalUrl = `https://agrey-flix.vercel.app/${type}/${slug}`;
+  const ogImageUrl = details?.backdrop_path 
+    ? `https://image.tmdb.org/t/p/w1280${details.backdrop_path}` 
+    : details?.poster_path 
+      ? `https://image.tmdb.org/t/p/w500${details.poster_path}` 
+      : 'https://image.tmdb.org/t/p/w1280/wwemzKWkjFpxm6zXvLCH2CHmZQQ.jpg';
+
+  // Structured breadcrumb data for media item
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://agrey-flix.vercel.app/home"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": type === 'movie' ? 'Movies' : 'TV Shows',
+        "item": `https://agrey-flix.vercel.app/${type === 'movie' ? 'movies' : 'series'}`
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": currentMediaTitle || 'Details'
+      }
+    ]
+  };
+
+  const webAppSchema = details ? {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": `${currentMediaTitle} on AgreyFlix`,
+    "operatingSystem": "All",
+    "applicationCategory": "MultimediaApplication",
+    "browserRequirements": "Requires HTML5 compatible player",
+    "offers": {
+      "@type": "Offer",
+      "price": "0.00",
+      "priceCurrency": "USD"
+    }
+  } : null;
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -498,6 +559,36 @@ ${appUrl}`;
       exit={{ opacity: 0 }}
       className="pb-20 relative min-h-screen bg-[#050505]"
     >
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDesc} />
+        <meta name="keywords" content={`${currentMediaTitle}, stream ${currentMediaTitle}, watch ${currentMediaTitle}, online streaming, AgreyFlix, ${type === 'movie' ? 'movie' : 'series'}`} />
+        <link rel="canonical" href={canonicalUrl} />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="video.other" />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDesc} />
+        <meta property="og:image" content={ogImageUrl} />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={canonicalUrl} />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={pageDesc} />
+        <meta name="twitter:image" content={ogImageUrl} />
+
+        {/* Dynamic Schema Injection */}
+        <script type="application/ld+json">
+          {JSON.stringify(breadcrumbSchema)}
+        </script>
+        {webAppSchema && (
+          <script type="application/ld+json">
+            {JSON.stringify(webAppSchema)}
+          </script>
+        )}
+      </Helmet>
       {/* Back button */}
       <button 
         onClick={() => navigate(-1)}

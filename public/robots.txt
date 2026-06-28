@@ -9,4 +9,4 @@ Disallow: /api/
 User-agent: Googlebot
 Allow: /
 
-Sitemap: https://www.agreyplayer.app/sitemap.xml
+Sitemap: https://agrey-flix.vercel.app/sitemap.xml

@@ -1,7 +1,7 @@
 {
   "name": "AGREY-FLIX",
   "short_name": "AgreyFlix",
-  "description": "High-Speed Premium Movies & Series Streaming Hub",
+  "description": "High-Speed Free Movies & Series Streaming Hub",
   "start_url": "/",
   "id": "/?source=pwa",
   "display": "standalone",

@@ -3,7 +3,114 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AgreyFlix | Premium Streaming Hub</title>
+    <title>AgreyFlix | Stream Movies, TV Series & Swahili Translations</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Access a curated selection of global movies, TV series, and animations with professional Swahili translations on AgreyFlix. Enjoy high-definition streams, buffer-free playback, and high-speed offline downloads." />
+    <meta name="keywords" content="AgreyFlix, stream Swahili series, Swahili translation cinema, watch movies Swahili, Swahili dub movie, translation subtitle Swahili, stream movies online, download movies, East Africa entertainment hub" />
+    <meta name="news_keywords" content="AgreyFlix, movies, TV series, entertainment, Swahili content" />
+    <meta name="author" content="AgreyFlix" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="bingbot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="language" content="English, Swahili" />
+    <meta http-equiv="content-language" content="en, sw" />
+    
+    <!-- Google Search Console Verification -->
+    <meta name="google-site-verification" content="googlefcad10a31e680c35" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://agrey-flix.vercel.app/" />
+    
+    <!-- Structured Data (JSON-LD Schema) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://agrey-flix.vercel.app/#organization",
+            "name": "AgreyFlix",
+            "url": "https://agrey-flix.vercel.app",
+            "logo": "https://agrey-flix.vercel.app/app_icon.jpg",
+            "image": "https://agrey-flix.vercel.app/og-image.jpg",
+            "description": "AgreyFlix is an advanced entertainment streaming platform offering curated global films, TV series, animations, and high-quality Swahili subtitles and voice translations.",
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "telephone": "+255740430220",
+              "contactType": "customer service",
+              "email": "agreyflix@gmail.com",
+              "availableLanguage": ["English", "Swahili"],
+              "areaServed": "Global"
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://agrey-flix.vercel.app/#website",
+            "url": "https://agrey-flix.vercel.app",
+            "name": "AgreyFlix",
+            "description": "Stream movies, TV shows, and animations with professional Swahili translations and high-speed offline downloads.",
+            "publisher": {
+              "@id": "https://agrey-flix.vercel.app/#organization"
+            },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://agrey-flix.vercel.app/search?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://agrey-flix.vercel.app/#webapplication",
+            "name": "AgreyFlix Streaming Web App",
+            "url": "https://agrey-flix.vercel.app",
+            "applicationCategory": "EntertainmentApplication",
+            "operatingSystem": "All",
+            "browserRequirements": "Requires HTML5 compatible browser.",
+            "screenshot": "https://agrey-flix.vercel.app/og-image.jpg",
+            "author": {
+              "@id": "https://agrey-flix.vercel.app/#organization"
+            }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://agrey-flix.vercel.app/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://agrey-flix.vercel.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Movies",
+                "item": "https://agrey-flix.vercel.app/movies"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "TV Series",
+                "item": "https://agrey-flix.vercel.app/series"
+              },
+              {
+                "@type": "ListItem",
+                "position": 4,
+                "name": "About Us",
+                "item": "https://agrey-flix.vercel.app/about"
+              },
+              {
+                "@type": "ListItem",
+                "position": 5,
+                "name": "Contact Us",
+                "item": "https://agrey-flix.vercel.app/contact"
+              }
+            ]
+          }
+        ]
+      }
+    </script>
     
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.json" />
@@ -16,17 +123,17 @@
     
     <!-- Open Graph Meta Tags -->
     <meta property="og:site_name" content="AgreyFlix" />
-    <meta property="og:title" content="AgreyFlix | Unlimited Premium Streaming Platform" />
-    <meta property="og:description" content="Stream high-speed cloud content, real-time multi-track translation files, and optimized multi-threaded downloads on AgreyFlix without ad interruptions." />
-    <meta property="og:image" content="https://image.tmdb.org/t/p/w1280/wwemzKWkjFpxm6zXvLCH2CHmZQQ.jpg" />
+    <meta property="og:title" content="AgreyFlix | Stream Movies, TV Series & Swahili Translations" />
+    <meta property="og:description" content="Access a curated selection of global movies, TV series, and animations with professional Swahili translations on AgreyFlix. Enjoy high-definition streams, buffer-free playback, and high-speed offline downloads." />
+    <meta property="og:image" content="https://agrey-flix.vercel.app/og-image.jpg" />
     <meta property="og:url" content="https://agrey-flix.vercel.app/" />
     <meta property="og:type" content="website" />
     
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="AgreyFlix | Unlimited Premium Streaming Platform" />
-    <meta name="twitter:description" content="Stream high-speed cloud content, real-time multi-track translation files, and optimized multi-threaded downloads on AgreyFlix without ad interruptions." />
-    <meta name="twitter:image" content="https://image.tmdb.org/t/p/w1280/wwemzKWkjFpxm6zXvLCH2CHmZQQ.jpg" />
+    <meta name="twitter:title" content="AgreyFlix | Stream Movies, TV Series & Swahili Translations" />
+    <meta name="twitter:description" content="Access a curated selection of global movies, TV series, and animations with professional Swahili translations on AgreyFlix. Enjoy high-definition streams, buffer-free playback, and high-speed offline downloads." />
+    <meta name="twitter:image" content="https://agrey-flix.vercel.app/og-image.jpg" />
   </head>
   <body>
     <div id="root"></div>

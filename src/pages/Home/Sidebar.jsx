@@ -120,7 +120,7 @@ export default function Sidebar({ isOpen, onClose }) {
         variants={sidebarVariants}
         initial="hidden"
         animate="show"
-        className={`fixed md:relative top-0 left-0 w-[240px] flex-shrink-0 bg-[#0A0A0A] border-r border-white/5 h-[100dvh] flex flex-col justify-between items-start py-6 transition-transform duration-300 z-[70] md:translate-x-0 ${
+        className={`fixed md:relative top-0 left-0 w-[240px] flex-shrink-0 bg-[#0A0A0A] border-r border-white/5 h-[100dvh] flex flex-col justify-between items-start py-6 transition-transform duration-300 z-[70] md:translate-x-0 overflow-y-auto custom-scrollbar ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -136,7 +136,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </motion.div>
 
           {/* Navigation */}
-          <nav className="flex flex-col gap-1 w-full px-4 overflow-y-auto hide-scrollbar">
+          <nav className="flex flex-col gap-1 w-full px-4 overflow-y-auto custom-scrollbar">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
               return (
@@ -203,6 +203,20 @@ export default function Sidebar({ isOpen, onClose }) {
             )}
           </nav>
         </div>
+
+        {/* SEO Trust Pages Sub-Footer */}
+        <motion.div 
+          variants={itemVariants}
+          className="w-full px-6 py-3 border-t border-white/5 mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[9px] font-black uppercase tracking-wider text-zinc-600 shrink-0"
+        >
+          <NavLink to="/about" onClick={onClose} className="hover:text-red-500 transition-colors">About</NavLink>
+          <span className="text-zinc-800 select-none">•</span>
+          <NavLink to="/contact" onClick={onClose} className="hover:text-red-500 transition-colors">Contact</NavLink>
+          <span className="text-zinc-800 select-none">•</span>
+          <NavLink to="/privacy" onClick={onClose} className="hover:text-red-500 transition-colors">Privacy</NavLink>
+          <span className="text-zinc-800 select-none">•</span>
+          <NavLink to="/terms" onClick={onClose} className="hover:text-red-500 transition-colors">Terms</NavLink>
+        </motion.div>
 
         {/* User / Settings Profile & Logout */}
         <motion.div variants={itemVariants} className="w-full px-4 flex items-center gap-2">

@@ -25,7 +25,7 @@ export default function StreamingErrorDiagnostics({ error, mediaId, type, season
           <span className="text-base tracking-tight text-white">Connection Interrupted</span>
         </div>
         <p className="text-sm text-zinc-400 font-medium leading-relaxed">
-          Your internet connection appears to be offline. Please verify your network settings, active subscription, or router configuration and try again.
+          Your internet connection appears to be offline. Please verify your network settings, connection status, or router configuration and try again.
         </p>
       </div>
     );

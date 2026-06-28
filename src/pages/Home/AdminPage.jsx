@@ -9,8 +9,9 @@ import {
   FaUndo, FaHeartbeat, FaServer, FaDatabase, FaCog, FaTerminal, 
   FaBolt, FaChartLine, FaPlay, FaDownload, FaClock, FaFlag, FaLock, 
   FaSlidersH, FaSearch, FaSyncAlt, FaWrench, FaFolder, FaChevronLeft, 
-  FaChevronRight, FaBars, FaVideo, FaHeart
+  FaChevronRight, FaBars, FaVideo, FaHeart, FaRobot, FaChevronDown, FaChevronUp
 } from 'react-icons/fa';
+import SerraPanel from '../../components/SerraPanel';
 
 export default function AdminPage() {
   const { profile, loading: profileLoading } = useProfile();
@@ -20,6 +21,16 @@ export default function AdminPage() {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isSerraDropdownOpen, setIsSerraDropdownOpen] = useState(true);
+
+  const serraSubItems = [
+    { id: 'serra-chat', label: 'AI Chat Ops', icon: FaRobot },
+    { id: 'serra-analytics', label: 'Analytics Intel', icon: FaChartLine },
+    { id: 'serra-content', label: 'Content Studio', icon: FaSlidersH },
+    { id: 'serra-security', label: 'Security Shield', icon: FaShieldAlt },
+    { id: 'serra-notifications', label: 'Notification Gen', icon: FaBell },
+    { id: 'serra-commands', label: 'Smart Commands AI', icon: FaTerminal }
+  ];
   
   // Data States
   const [users, setUsers] = useState([]);
@@ -445,6 +456,7 @@ export default function AdminPage() {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: FaChartLine },
+    { id: 'serra-ai', label: 'SERRA', icon: FaRobot },
     { id: 'users-analytics', label: 'Users Analytics', icon: FaUsers },
     { id: 'content-analytics', label: 'Content Analytics', icon: FaPlay },
     { id: 'tiktok-videos', label: 'TikTok Videos', icon: FaHeart },
@@ -459,7 +471,7 @@ export default function AdminPage() {
     <div className="flex bg-[#070707] min-h-screen text-zinc-300 overflow-hidden relative">
       
       {/* SIDEBAR */}
-      <aside className={`bg-[#0D0D0D] border-r border-white/5 flex flex-col transition-all duration-300 z-50 fixed md:static top-0 bottom-0 left-0 
+      <aside className={`bg-[#0D0D0D] border-r border-white/5 flex flex-col transition-all duration-300 z-50 fixed md:static top-0 bottom-0 left-0 overflow-y-auto custom-scrollbar h-screen md:h-auto 
         ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'} 
         ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'}`}
       >
@@ -481,9 +493,93 @@ export default function AdminPage() {
         </div>
 
         {/* NAVIGATION MENUS */}
-        <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto mt-4">
+        <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto mt-4 custom-scrollbar">
           {menuItems.map(item => {
             const Icon = item.icon;
+            
+            if (item.id === 'serra-ai') {
+              const isSerraActive = activeSection.startsWith('serra-');
+              return (
+                <div key={item.id} className="space-y-1">
+                  <button
+                    onClick={() => {
+                      setIsSerraDropdownOpen(!isSerraDropdownOpen);
+                      // If not already in a serra section, navigate to serra-chat by default
+                      if (!isSerraActive) {
+                        setActiveSection('serra-chat');
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer group
+                      ${isSerraActive 
+                        ? 'bg-red-950/40 border border-red-500/20 text-red-500' 
+                        : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'}`}
+                    title={item.label}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <Icon size={15} className={`shrink-0 ${isSerraActive ? 'text-red-500' : 'text-zinc-500 group-hover:text-zinc-300'}`} />
+                      {(!isSidebarCollapsed || isMobileOpen) && <span>{item.label}</span>}
+                    </div>
+                    {(!isSidebarCollapsed || isMobileOpen) && (
+                      <div className="text-zinc-500 group-hover:text-zinc-300">
+                        {isSerraDropdownOpen ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Nested Dropdown Sub-items */}
+                  {isSerraDropdownOpen && (!isSidebarCollapsed || isMobileOpen) && (
+                    <div className="pl-4 ml-4 border-l border-white/5 space-y-1 mt-1 animate-fadeIn">
+                      {serraSubItems.map(subItem => {
+                        const SubIcon = subItem.icon;
+                        const isSubActive = activeSection === subItem.id;
+                        return (
+                          <button
+                            key={subItem.id}
+                            onClick={() => {
+                              setActiveSection(subItem.id);
+                              setIsMobileOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer text-left
+                              ${isSubActive
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/10'
+                                : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+                              }`}
+                          >
+                            <SubIcon size={11} className={isSubActive ? 'text-white' : 'text-zinc-600'} />
+                            <span>{subItem.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Collapsed view icons if dropdown is open and sidebar is collapsed */}
+                  {isSerraDropdownOpen && isSidebarCollapsed && !isMobileOpen && (
+                    <div className="flex flex-col items-center gap-2 mt-1 py-1 bg-black/20 rounded-xl">
+                      {serraSubItems.map(subItem => {
+                        const SubIcon = subItem.icon;
+                        const isSubActive = activeSection === subItem.id;
+                        return (
+                          <button
+                            key={subItem.id}
+                            onClick={() => {
+                              setActiveSection(subItem.id);
+                              setIsMobileOpen(false);
+                            }}
+                            className={`p-2 rounded-lg transition-all ${
+                              isSubActive ? 'bg-red-600 text-white' : 'text-zinc-600 hover:text-zinc-300'
+                            }`}
+                            title={subItem.label}
+                          >
+                            <SubIcon size={12} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             const isActive = activeSection === item.id;
             return (
               <button
@@ -534,7 +630,9 @@ export default function AdminPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 pb-5">
           <div>
             <h1 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-2">
-              {menuItems.find(m => m.id === activeSection)?.label} Control 
+              {activeSection.startsWith('serra-') 
+                ? (serraSubItems.find(s => s.id === activeSection)?.label || 'SERRA AI') 
+                : (menuItems.find(m => m.id === activeSection)?.label || 'Admin')} Control 
               <span className="text-[9px] bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded font-black tracking-widest uppercase">STABLE</span>
             </h1>
             <p className="text-zinc-500 text-xs mt-1 font-semibold">AgreyFlix Live Operator Dashboard & TMDB Aggregator Node</p>
@@ -610,7 +708,7 @@ export default function AdminPage() {
                       <h3 className="text-sm font-black uppercase tracking-wider text-white mb-4">User Activity - Most Watched Catalogs</h3>
                       <div className="space-y-3">
                         {getTopMovies().length === 0 ? (
-                          <div className="text-center py-6 text-xs text-zinc-500 font-bold">
+                           <div className="text-center py-6 text-xs text-zinc-500 font-bold">
                             No user interactions recorded yet.
                           </div>
                         ) : (
@@ -648,6 +746,19 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* SERRA AI INTEL MODULE */}
+            {activeSection.startsWith('serra-') && (
+              <SerraPanel 
+                users={users} 
+                reports={reports} 
+                servers={servers} 
+                tiktokVideos={tiktokVideos} 
+                notifications={notifications} 
+                adminLogs={adminLogs} 
+                initialTab={activeSection.replace('serra-', '')}
+              />
             )}
 
             {/* 2. USERS ANALYTICS */}

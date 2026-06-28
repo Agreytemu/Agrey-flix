@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import HeroBanner from './HeroBanner';
 import { useProfile } from '../../context/ProfileContext';
 import { FaCheckCircle, FaCalendarAlt, FaTimes, FaGift } from 'react-icons/fa';
@@ -326,6 +327,11 @@ export default function HomePage() {
       exit={{ opacity: 0 }} 
       className="pb-20"
     >
+      <Helmet>
+        <title>Home Dashboard | AgreyFlix Streaming Hub</title>
+        <meta name="description" content="Discover popular movies, top series, Swahili translations, animations, and high-speed streaming rows curated specifically for you on AgreyFlix." />
+        <link rel="canonical" href="https://agrey-flix.vercel.app/home" />
+      </Helmet>
       {/* Welcome Banner Card (Member vs Guest) */}
       {profile ? (
         <motion.div 

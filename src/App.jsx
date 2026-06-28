@@ -29,6 +29,10 @@ import ComputerDownloadPage from './pages/Home/ComputerDownloadPage';
 import AdminPage from './pages/Home/AdminPage';
 import ProfilePage from './pages/Home/ProfilePage';
 import ForYouPage from './pages/Home/ForYouPage';
+import AboutPage from './pages/Home/AboutPage';
+import ContactPage from './pages/Home/ContactPage';
+import PrivacyPage from './pages/Home/PrivacyPage';
+import TermsPage from './pages/Home/TermsPage';
 
 function App() {
   useEffect(() => {
@@ -97,6 +101,11 @@ function App() {
           </Route>
           
           {/* Routes that don't need onboarding checks */}
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/setup" element={<PreferencesSetup />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<EmailVerificationPage />} />

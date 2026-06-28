@@ -220,4 +220,29 @@
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://agrey-flix.vercel.app/about</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://agrey-flix.vercel.app/contact</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://agrey-flix.vercel.app/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://agrey-flix.vercel.app/privacy-policy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://agrey-flix.vercel.app/terms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
 </urlset>
