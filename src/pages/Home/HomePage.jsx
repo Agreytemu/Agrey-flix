@@ -325,7 +325,7 @@ export default function HomePage() {
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="pb-20"
+      className="pb-28 md:pb-20"
     >
       <Helmet>
         <title>Home Dashboard | AgreyFlix Streaming Hub</title>

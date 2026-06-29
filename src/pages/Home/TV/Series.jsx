@@ -79,7 +79,7 @@ export default function Series() {
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: -20 }} 
       transition={{ duration: 0.4 }}
-      className="p-6 md:p-10 pb-20 max-w-[1600px] mx-auto w-full"
+      className="px-4 md:px-10 py-6 md:py-10 pb-28 md:pb-20 max-w-[1600px] mx-auto w-full"
     >
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight border-l-4 border-red-600 pl-4 shadow-sm">
@@ -110,7 +110,7 @@ export default function Series() {
             hidden: { opacity: 0 },
             show: { opacity: 1, transition: { staggerChildren: 0.05 } }
           }}
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6"
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6"
         >
           {series.map((show) => (
              <motion.div variants={{ hidden: { opacity: 0, scale: 0.9 }, show: { opacity: 1, scale: 1 } }} key={show.id}>

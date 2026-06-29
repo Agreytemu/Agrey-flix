@@ -493,7 +493,12 @@ export const supabaseService = {
    * Sync and save Continue Watching progress.
    */
   updateContinueWatching: async (continueWatching) => {
-    if (!currentSessionUser) return;
+    if (!currentSessionUser) {
+      const STORAGE_KEY = 'weflix_continue_watching_cache';
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(continueWatching));
+      window.dispatchEvent(new Event('weflix_continue_watching_updated'));
+      return;
+    }
     const mergedUser = { ...currentSessionUser, continueWatching };
 
     if (isConfigured && supabase) {
@@ -528,6 +533,45 @@ export const supabaseService = {
     }
 
     notifyListeners(mergedUser);
+    window.dispatchEvent(new Event('weflix_continue_watching_updated'));
+  },
+
+  /**
+   * Save or update a single Continue Watching item with progress and cache it.
+   */
+  saveContinueWatchingItem: async (item) => {
+    const STORAGE_KEY = 'weflix_continue_watching_cache';
+    let list = [];
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) {
+      try { list = JSON.parse(cached); } catch(e){}
+    }
+
+    // Filter out matches of current mediaId
+    list = list.filter(x => String(x.mediaId) !== String(item.mediaId));
+
+    // Ensure we keep existing updatedAt if new item doesn't have it, or set default progress if not defined
+    const newItem = {
+      mediaId: String(item.mediaId),
+      type: item.type,
+      title: item.title,
+      subTitle: item.subTitle || '',
+      slug: item.slug || String(item.mediaId),
+      backdrop_path: item.backdrop_path || null,
+      progress: typeof item.progress === 'number' ? item.progress : 10, // Start with 10% progress if not specified
+      lastWatchedEpisode: item.lastWatchedEpisode || (item.type === 'tv' ? { season: Number(item.season || 1), episode: Number(item.episode || 1) } : null),
+      updatedAt: item.updatedAt || Date.now(),
+    };
+
+    const updatedList = [newItem, ...list].slice(0, 12);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
+
+    // Now call the existing updateContinueWatching function to sync to DB / listeners!
+    if (currentSessionUser) {
+      await supabaseService.updateContinueWatching(updatedList);
+    } else {
+      window.dispatchEvent(new Event('weflix_continue_watching_updated'));
+    }
   },
 
   /**

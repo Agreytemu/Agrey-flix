@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useProfile } from '../../context/ProfileContext';
 import { supabaseService } from '../../utils/supabaseService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaShieldAlt, FaBell, FaUsers, FaTrash, FaPlus, FaCheck, FaTimes, 
@@ -16,12 +16,13 @@ import SerraPanel from '../../components/SerraPanel';
 export default function AdminPage() {
   const { profile, loading: profileLoading } = useProfile();
   const navigate = useNavigate();
+  const { subpage } = useParams();
   
   // Navigation & UI States
-  const [activeSection, setActiveSection] = useState('dashboard');
+  const activeSection = subpage || 'dashboard';
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isSerraDropdownOpen, setIsSerraDropdownOpen] = useState(true);
+  const [isSerraDropdownOpen, setIsSerraDropdownOpen] = useState(false);
 
   const serraSubItems = [
     { id: 'serra-chat', label: 'AI Chat Ops', icon: FaRobot },
@@ -468,163 +469,87 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="flex bg-[#070707] min-h-screen text-zinc-300 overflow-hidden relative">
+    <div className="min-h-screen bg-[#070707] text-zinc-300 pb-28 md:pb-12 pt-20 md:pt-10 px-4 sm:px-8 md:px-12 max-w-7xl mx-auto w-full">
       
-      {/* SIDEBAR */}
-      <aside className={`bg-[#0D0D0D] border-r border-white/5 flex flex-col transition-all duration-300 z-50 fixed md:static top-0 bottom-0 left-0 overflow-y-auto custom-scrollbar h-screen md:h-auto 
-        ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'} 
-        ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'}`}
-      >
-        <div className="p-5 border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center shrink-0 shadow-lg shadow-red-600/30">
-              <FaShieldAlt className="text-white text-base" />
-            </div>
-            {!isSidebarCollapsed && (
-              <span className="font-black text-sm tracking-wider text-white select-none">AGREYFLIX CTRL</span>
-            )}
+      {/* HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 to-rose-700 shadow-xl flex items-center justify-center shrink-0">
+            <FaShieldAlt className="text-white text-xl" />
           </div>
-          <button 
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden md:flex text-zinc-500 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-all"
-          >
-            {isSidebarCollapsed ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />}
-          </button>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-2">
+              ADMIN CONTROL <span className="text-[10px] bg-red-600 px-2 py-1 rounded-md tracking-widest font-black uppercase">STABLE</span>
+            </h1>
+            <p className="text-gray-500 text-sm font-semibold">
+              Live Operator Dashboard & TMDB Aggregator Node
+            </p>
+          </div>
         </div>
+        <button
+          onClick={() => navigate('/home')}
+          className="flex items-center gap-2 bg-[#0D0D0D] hover:bg-zinc-900 border border-white/5 text-zinc-300 hover:text-white px-5 py-2.5 rounded-xl font-bold text-xs tracking-wider transition-all cursor-pointer border-0 outline-none shrink-0"
+        >
+          <FaHome size={12} /> Back to Movie Home
+        </button>
+      </div>
 
-        {/* NAVIGATION MENUS */}
-        <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto mt-4 custom-scrollbar">
-          {menuItems.map(item => {
-            const Icon = item.icon;
-            
-            if (item.id === 'serra-ai') {
-              const isSerraActive = activeSection.startsWith('serra-');
-              return (
-                <div key={item.id} className="space-y-1">
-                  <button
-                    onClick={() => {
-                      setIsSerraDropdownOpen(!isSerraDropdownOpen);
-                      // If not already in a serra section, navigate to serra-chat by default
-                      if (!isSerraActive) {
-                        setActiveSection('serra-chat');
-                      }
-                    }}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer group
-                      ${isSerraActive 
-                        ? 'bg-red-950/40 border border-red-500/20 text-red-500' 
-                        : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'}`}
-                    title={item.label}
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <Icon size={15} className={`shrink-0 ${isSerraActive ? 'text-red-500' : 'text-zinc-500 group-hover:text-zinc-300'}`} />
-                      {(!isSidebarCollapsed || isMobileOpen) && <span>{item.label}</span>}
-                    </div>
-                    {(!isSidebarCollapsed || isMobileOpen) && (
-                      <div className="text-zinc-500 group-hover:text-zinc-300">
-                        {isSerraDropdownOpen ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
-                      </div>
-                    )}
-                  </button>
+      {/* ADMIN NAVIGATION TABS */}
+      <div className="mb-8 bg-[#0D0D0D]/90 border border-white/5 p-2 rounded-2xl flex items-center gap-1.5 overflow-x-auto scrollbar-none snap-x">
+        {menuItems.map(item => {
+          const Icon = item.icon;
+          // Check if active section is serra-related
+          const isSerraActive = item.id === 'serra-ai' && activeSection.startsWith('serra-');
+          const isActive = activeSection === item.id || isSerraActive;
+          
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                if (item.id === 'serra-ai') {
+                  navigate('/admin/serra-chat');
+                } else {
+                  navigate(`/admin/${item.id}`);
+                }
+              }}
+              className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap snap-align-start shrink-0 border-0 outline-none
+                ${isActive 
+                  ? 'bg-red-600 text-white shadow-lg shadow-red-600/25' 
+                  : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'}`}
+            >
+              <Icon size={14} className={isActive ? 'text-white' : 'text-zinc-500'} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-                  {/* Nested Dropdown Sub-items */}
-                  {isSerraDropdownOpen && (!isSidebarCollapsed || isMobileOpen) && (
-                    <div className="pl-4 ml-4 border-l border-white/5 space-y-1 mt-1 animate-fadeIn">
-                      {serraSubItems.map(subItem => {
-                        const SubIcon = subItem.icon;
-                        const isSubActive = activeSection === subItem.id;
-                        return (
-                          <button
-                            key={subItem.id}
-                            onClick={() => {
-                              setActiveSection(subItem.id);
-                              setIsMobileOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer text-left
-                              ${isSubActive
-                                ? 'bg-red-600 text-white shadow-md shadow-red-600/10'
-                                : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
-                              }`}
-                          >
-                            <SubIcon size={11} className={isSubActive ? 'text-white' : 'text-zinc-600'} />
-                            <span>{subItem.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {/* Collapsed view icons if dropdown is open and sidebar is collapsed */}
-                  {isSerraDropdownOpen && isSidebarCollapsed && !isMobileOpen && (
-                    <div className="flex flex-col items-center gap-2 mt-1 py-1 bg-black/20 rounded-xl">
-                      {serraSubItems.map(subItem => {
-                        const SubIcon = subItem.icon;
-                        const isSubActive = activeSection === subItem.id;
-                        return (
-                          <button
-                            key={subItem.id}
-                            onClick={() => {
-                              setActiveSection(subItem.id);
-                              setIsMobileOpen(false);
-                            }}
-                            className={`p-2 rounded-lg transition-all ${
-                              isSubActive ? 'bg-red-600 text-white' : 'text-zinc-600 hover:text-zinc-300'
-                            }`}
-                            title={subItem.label}
-                          >
-                            <SubIcon size={12} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            const isActive = activeSection === item.id;
+      {/* NESTED SERRA SUB-TABS (IF SERRA SECTION ACTIVE) */}
+      {activeSection.startsWith('serra-') && (
+        <div className="mb-8 bg-[#0D0D0D]/40 border border-white/5 p-2 rounded-2xl flex items-center gap-1.5 overflow-x-auto scrollbar-none snap-x">
+          {serraSubItems.map(subItem => {
+            const SubIcon = subItem.icon;
+            const isSubActive = activeSection === subItem.id;
             return (
               <button
-                key={item.id}
-                onClick={() => {
-                  setActiveSection(item.id);
-                  setIsMobileOpen(false);
-                }}
-                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer group
-                  ${isActive 
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/25' 
-                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'}`}
-                title={item.label}
+                key={subItem.id}
+                onClick={() => navigate(`/admin/${subItem.id}`)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap snap-align-start shrink-0 border-0 outline-none
+                  ${isSubActive
+                    ? 'bg-red-600/10 border border-red-500/20 text-red-400 font-black'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+                  }`}
               >
-                <Icon size={15} className={`shrink-0 ${isActive ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-300'}`} />
-                {(!isSidebarCollapsed || isMobileOpen) && <span>{item.label}</span>}
+                <SubIcon size={12} className={isSubActive ? 'text-red-400' : 'text-zinc-600'} />
+                <span>{subItem.label}</span>
               </button>
             );
           })}
-        </nav>
-
-        {/* PROFILE FOOTER */}
-        <div className="p-4 border-t border-white/5 flex items-center gap-3 bg-[#090909]">
-          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 shrink-0 flex items-center justify-center text-xs font-bold text-red-500 uppercase">
-            {profile.displayName?.charAt(0) || 'A'}
-          </div>
-          {(!isSidebarCollapsed || isMobileOpen) && (
-            <div className="overflow-hidden">
-              <div className="text-xs font-bold text-white truncate">{profile.displayName || 'Administrator'}</div>
-              <div className="text-[10px] text-zinc-600 truncate">{profile.email}</div>
-            </div>
-          )}
         </div>
-      </aside>
-
-      {/* MOBILE HAMBURGER TOGGLE */}
-      <button 
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 bg-[#0D0D0D] p-3 rounded-xl border border-white/10 text-white hover:bg-zinc-800 transition-all shadow-xl"
-      >
-        <FaBars size={14} />
-      </button>
+      )}
 
       {/* MAIN VIEWPORT PANEL */}
-      <main className="flex-1 flex flex-col min-h-screen overflow-y-auto p-4 sm:p-6 md:p-8 pt-20 md:pt-8 w-full max-w-7xl mx-auto space-y-6">
+      <div className="flex-1 flex flex-col w-full space-y-6">
         
         {/* TOP METADATA BAR */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 pb-5">
@@ -1473,7 +1398,7 @@ CREATE POLICY "Allow admin write access to tiktok_videos" ON public.tiktok_video
 
           </motion.div>
         </AnimatePresence>
-      </main>
+      </div>
     </div>
   );
 }

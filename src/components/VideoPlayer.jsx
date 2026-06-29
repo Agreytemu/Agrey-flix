@@ -165,11 +165,18 @@ export default function VideoPlayer({
     };
   }, [src]);
 
+  // Keep a mutable ref of current values to write synchronously on unmount
+  const saveRef = useRef(null);
+  useEffect(() => {
+    saveRef.current = { currentTime, duration, mediaId, type, title, subTitle, season, episode, backdropPath, slug };
+  }, [currentTime, duration, mediaId, type, title, subTitle, season, episode, backdropPath, slug]);
+
   // Save progress for Continue Watching
   useEffect(() => {
     if (!mediaId || currentTime <= 0 || duration <= 0) return;
 
-    const saveTimer = setTimeout(() => {
+    const saveProgress = (data) => {
+      if (!data || !data.mediaId || data.currentTime <= 0 || data.duration <= 0) return;
       try {
         const STORAGE_KEY = 'weflix_continue_watching_cache';
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -179,19 +186,19 @@ export default function VideoPlayer({
         }
 
         // Filter out matches
-        list = list.filter(item => String(item.mediaId) !== String(mediaId));
+        list = list.filter(item => String(item.mediaId) !== String(data.mediaId));
         
         // Push as first item (limit to 12)
         const updatedList = [
           {
-            mediaId: String(mediaId),
-            type,
-            title,
-            subTitle,
-            slug: slug || String(mediaId),
-            backdrop_path: backdropPath || null,
-            progress: (currentTime / duration) * 100,
-            lastWatchedEpisode: type === 'tv' ? { season: Number(season || 1), episode: Number(episode || 1) } : null,
+            mediaId: String(data.mediaId),
+            type: data.type,
+            title: data.title,
+            subTitle: data.subTitle,
+            slug: data.slug || String(data.mediaId),
+            backdrop_path: data.backdropPath || null,
+            progress: (data.currentTime / data.duration) * 100,
+            lastWatchedEpisode: data.type === 'tv' ? { season: Number(data.season || 1), episode: Number(data.episode || 1) } : null,
             updatedAt: Date.now(),
           },
           ...list
@@ -207,9 +214,19 @@ export default function VideoPlayer({
       } catch (err) {
         console.error('Failed to update continue watching progress:', err);
       }
+    };
+
+    const saveTimer = setTimeout(() => {
+      saveProgress(saveRef.current);
     }, 5000); // Debounce saves to local storage every 5 seconds
 
-    return () => clearTimeout(saveTimer);
+    return () => {
+      clearTimeout(saveTimer);
+      // Synchronously write final state on unmount / cleanup
+      if (saveRef.current) {
+        saveProgress(saveRef.current);
+      }
+    };
   }, [currentTime, duration, mediaId, type, title, subTitle, season, episode, backdropPath, slug]);
 
   // 2. Play/Pause Handlers

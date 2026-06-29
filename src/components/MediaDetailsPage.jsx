@@ -11,6 +11,7 @@ import { useWatchlist } from '../context/WatchlistContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchTmdb } from '../utils/tmdb';
 import { fetchStreamLinks, resolveStreamUrl, getStreamSourceType } from '../utils/extract';
+import { supabaseService } from '../utils/supabaseService';
 import VideoPlayer from './VideoPlayer';
 import AgreyFlixLoader from './AgreyFlixLoader';
 import StreamingErrorDiagnostics from './StreamingErrorDiagnostics';
@@ -419,6 +420,19 @@ ${appUrl}`;
       setActiveSeason(sNum);
       setActiveEpisode(eNum);
     }
+
+    // Save/update Continue Watching record on play
+    supabaseService.saveContinueWatchingItem({
+      mediaId: slug,
+      type: type,
+      title: details?.title || details?.name || '',
+      subTitle: type === 'tv' ? `S${sNum} E${eNum}` : '',
+      slug: slug,
+      backdrop_path: details?.backdrop_path || null,
+      progress: 10,
+      lastWatchedEpisode: type === 'tv' ? { season: sNum, episode: eNum } : null,
+      updatedAt: Date.now()
+    }).catch(err => console.error("Error saving continue watching item:", err));
 
     if (streamSource === 'embed') {
       const embedBaseUrl = import.meta.env.VITE_SERVER_EMBED_URL || 'https://vidsrc-embed.ru';

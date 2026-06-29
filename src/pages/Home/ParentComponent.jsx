@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, NavLink } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import AuthModal from '../../components/AuthModal';
 import AgreyFlixLoader from '../../components/AgreyFlixLoader';
 import { AnimatePresence } from 'framer-motion';
-import { FaBars, FaSearch, FaHeart } from 'react-icons/fa';
+import { FaSearch, FaHome, FaFilm, FaTv, FaUser, FaCog, FaThLarge, FaShieldAlt, FaFolder } from 'react-icons/fa';
 import { BiMoviePlay } from 'react-icons/bi';
+import { useProfile } from '../../context/ProfileContext';
 
 export default function ParentComponent() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function ParentComponent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAppLoading, setIsAppLoading] = useState(true);
   const location = useLocation();
+  const { profile } = useProfile();
 
   useEffect(() => {
     // Simulate initial app boot time for the loader
@@ -50,48 +52,51 @@ export default function ParentComponent() {
 
   return (
     <div className="flex bg-[#050505] min-h-screen text-white overflow-hidden font-sans">
-      {/* Sidebar */}
+      {/* Sidebar - Hidden on mobile, visible on desktop */}
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto h-screen relative hide-scrollbar">
-        {/* Mobile Header (Hamburger) */}
-        <div className="md:hidden sticky top-0 z-40 bg-gradient-to-b from-[#0A0A0A] to-transparent p-4 flex items-center justify-between pointer-events-none">
-           <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-red-700 shadow-md flex items-center justify-center shrink-0">
-                <BiMoviePlay className="text-white text-lg" />
-              </div>
-              <span className="text-xl font-black tracking-tight drop-shadow-md">
-                Agrey<span className="text-red-500">Flix</span>
-              </span>
-           </div>
-           <div className="flex items-center gap-2 pointer-events-auto">
-             <button 
-               onClick={() => navigate('/for-you')}
-               className="h-10 px-4 rounded-full bg-black border border-white/10 hover:bg-zinc-900 text-white backdrop-blur-md flex items-center justify-center gap-1.5 active:scale-95 transition-all outline-none font-black text-xs uppercase tracking-wider"
-               title="For You"
-               id="mobile-foryou-btn"
-             >
-               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-               For You
-             </button>
-             <button 
-               onClick={() => navigate('/search')}
-               className="w-10 h-10 rounded-full bg-black/50 border border-white/10 backdrop-blur-md flex items-center justify-center text-white active:scale-95 transition-all outline-none"
-               title="Search"
-               id="mobile-search-btn"
-             >
-               <FaSearch className="text-xs" />
-             </button>
-             <button 
-               onClick={() => setIsSidebarOpen(true)}
-               className="w-10 h-10 rounded-full bg-black/50 border border-white/10 backdrop-blur-md flex items-center justify-center text-white active:scale-95 transition-all outline-none"
-               title="Menu"
-               id="mobile-menu-btn"
-             >
-               <FaBars className="text-xs" />
-             </button>
-           </div>
+      <main className="flex-1 overflow-y-auto h-screen relative pb-24 md:pb-0 hide-scrollbar">
+        {/* Compact Mobile Header (Real PWA Feel) */}
+        <div className="md:hidden sticky top-0 z-40 bg-[#050505]/95 backdrop-blur-md px-4 py-3 border-b border-white/5 flex items-center justify-between">
+          {/* Setting on top left */}
+          <NavLink 
+            to="/settings" 
+            className={({ isActive }) => `p-2 rounded-full transition-all duration-300 ${
+              isActive ? 'text-red-500' : 'text-zinc-400 hover:text-white'
+            }`}
+            title="Settings"
+            id="mobile-settings-btn"
+          >
+            <FaCog size={20} />
+          </NavLink>
+
+          {/* For You on top middle & branding */}
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] font-black tracking-widest uppercase text-red-500 leading-none mb-0.5">AgreyFlix</span>
+            <NavLink 
+              to="/for-you" 
+              className={({ isActive }) => `text-sm font-black uppercase tracking-wider transition-all duration-300 ${
+                isActive ? 'text-white border-b-2 border-red-500 pb-0.5' : 'text-zinc-400 hover:text-white'
+              }`}
+              title="For You"
+              id="mobile-foryou-tab"
+            >
+              For You
+            </NavLink>
+          </div>
+
+          {/* Search on top right */}
+          <NavLink 
+            to="/search" 
+            className={({ isActive }) => `p-2 rounded-full transition-all duration-300 ${
+              isActive ? 'text-red-500' : 'text-zinc-400 hover:text-white'
+            }`}
+            title="Search"
+            id="mobile-search-btn"
+          >
+            <FaSearch size={18} />
+          </NavLink>
         </div>
 
         <AnimatePresence mode="wait">
@@ -101,6 +106,88 @@ export default function ParentComponent() {
         </AnimatePresence>
       </main>
       
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0A0A0A]/95 backdrop-blur-lg border-t border-white/5 py-3 px-6 flex items-center justify-around pb-safe">
+        {/* Home */}
+        <NavLink
+          to="/home"
+          className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
+            isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <FaHome size={20} />
+          <span className="text-[10px] tracking-wider font-semibold">Home</span>
+        </NavLink>
+
+        {/* Movies */}
+        <NavLink
+          to="/movies"
+          className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
+            isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <FaFilm size={20} />
+          <span className="text-[10px] tracking-wider font-semibold">Movies</span>
+        </NavLink>
+
+        {/* Series */}
+        <NavLink
+          to="/series"
+          className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
+            isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <FaTv size={20} />
+          <span className="text-[10px] tracking-wider font-semibold">Series</span>
+        </NavLink>
+
+        {/* Hub */}
+        <NavLink
+          to="/hub"
+          className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
+            isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <FaThLarge size={20} />
+          <span className="text-[10px] tracking-wider font-semibold">Hub</span>
+        </NavLink>
+
+        {/* Library */}
+        <NavLink
+          to="/library"
+          className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
+            isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <FaFolder size={20} />
+          <span className="text-[10px] tracking-wider font-semibold">Library</span>
+        </NavLink>
+
+        {/* Admin (Only if Admin) */}
+        {profile?.isAdmin && (
+          <NavLink
+            to="/admin"
+            className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
+              isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <FaShieldAlt size={20} />
+            <span className="text-[10px] tracking-wider font-semibold">Admin</span>
+          </NavLink>
+        )}
+
+        {/* Profile */}
+        <NavLink
+          to="/profile"
+          className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
+            isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <FaUser size={20} />
+          <span className="text-[10px] tracking-wider font-semibold">Profile</span>
+        </NavLink>
+      </div>
+
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </div>
   );

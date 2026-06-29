@@ -28,11 +28,15 @@ import AndroidDownloadPage from './pages/Home/AndroidDownloadPage';
 import ComputerDownloadPage from './pages/Home/ComputerDownloadPage';
 import AdminPage from './pages/Home/AdminPage';
 import ProfilePage from './pages/Home/ProfilePage';
+import SettingsPage from './pages/Home/SettingsPage';
+import HubPage from './pages/Home/HubPage';
+import NotificationsPage from './pages/Home/NotificationsPage';
 import ForYouPage from './pages/Home/ForYouPage';
 import AboutPage from './pages/Home/AboutPage';
 import ContactPage from './pages/Home/ContactPage';
 import PrivacyPage from './pages/Home/PrivacyPage';
 import TermsPage from './pages/Home/TermsPage';
+import LocalLibraryPage from './pages/Home/LocalLibraryPage';
 
 function App() {
   useEffect(() => {
@@ -90,8 +94,13 @@ function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/person/:id/:slug" element={<PersonPage />} />
             <Route path="/watchlist" element={<WatchlistPage />} />
+            <Route path="/library" element={<LocalLibraryPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/hub" element={<HubPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/:subpage" element={<AdminPage />} />
             <Route path="/best-artists" element={<BestArtistsPage />} />
             <Route path="/upcoming" element={<UpcomingMoviesPage />} />
             <Route path="/africa-pride" element={<AfricaPridePage />} />

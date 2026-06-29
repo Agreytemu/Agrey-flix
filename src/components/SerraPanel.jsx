@@ -392,39 +392,16 @@ Output your result strictly as a valid JSON object matching this schema so that 
           </div>
           <div>
             <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-              SERRA <span className="text-[9px] bg-red-600/15 text-red-500 border border-red-500/20 px-1.5 py-0.5 rounded font-mono font-bold tracking-normal uppercase">AI Assistant</span>
+              {activeTab === 'chat' && 'AI Chat Ops'}
+              {activeTab === 'analytics' && 'Analytics Intel'}
+              {activeTab === 'content' && 'Content Studio'}
+              {activeTab === 'security' && 'Security Shield'}
+              {activeTab === 'notifications' && 'Notification Gen'}
+              {activeTab === 'commands' && 'Smart Commands AI'}
+              <span className="text-[9px] bg-red-600/15 text-red-500 border border-red-500/20 px-1.5 py-0.5 rounded font-mono font-bold tracking-normal uppercase">SERRA AI</span>
             </h2>
-            <p className="text-[10px] text-zinc-500 font-semibold">AgreyFlix Admin Operational Brain</p>
+            <p className="text-[10px] text-zinc-500 font-semibold">AgreyFlix Admin Standalone Operations Page</p>
           </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 bg-[#121212] p-1 rounded-2xl border border-white/5">
-          {[
-            { id: 'chat', label: 'AI Chat Ops', icon: Cpu },
-            { id: 'analytics', label: 'Analytics Intel', icon: TrendingUp },
-            { id: 'content', label: 'Content Studio', icon: Sparkles },
-            { id: 'security', label: 'Security Shield', icon: ShieldAlert },
-            { id: 'notifications', label: 'Notif Gen', icon: BellRing },
-            { id: 'commands', label: 'Smart Commands AI', icon: Terminal }
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isSel = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  isSel 
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' 
-                    : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                <Icon size={12} />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            );
-          })}
         </div>
       </div>
 

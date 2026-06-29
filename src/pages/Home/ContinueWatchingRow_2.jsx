@@ -72,12 +72,37 @@ export default function ContinueWatchingRow_2() {
     }
   }, []);
 
+  // Listen for live update events (e.g. guest or user playing a video)
+  useEffect(() => {
+    const handleLiveUpdate = () => {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        try {
+          setContinueWatching(JSON.parse(cached));
+        } catch (e) {
+          console.error("Failed to parse live updated cache", e);
+        }
+      }
+    };
+    window.addEventListener('weflix_continue_watching_updated', handleLiveUpdate);
+    return () => window.removeEventListener('weflix_continue_watching_updated', handleLiveUpdate);
+  }, []);
+
   useEffect(() => {
     const unsubscribe = supabaseService.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
-        setContinueWatching([]);
-        localStorage.removeItem(STORAGE_KEY);
+        // Load local storage progress for guest users instead of wiping it out
+        const cached = localStorage.getItem(STORAGE_KEY);
+        if (cached) {
+          try {
+            setContinueWatching(JSON.parse(cached));
+          } catch (e) {
+            setContinueWatching([]);
+          }
+        } else {
+          setContinueWatching([]);
+        }
         return;
       }
 
@@ -135,16 +160,17 @@ export default function ContinueWatchingRow_2() {
 
   const handleRemove = async (e, mediaId) => {
     e.stopPropagation();
-    if (!user) return;
     
     const newCwData = continueWatching.filter(item => String(item.mediaId) !== String(mediaId));
     setContinueWatching(newCwData);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newCwData));
     
-    try {
-      await supabaseService.updateContinueWatching(newCwData);
-    } catch (err) {
-      console.error('Failed to remove from continue watching', err);
+    if (user) {
+      try {
+        await supabaseService.updateContinueWatching(newCwData);
+      } catch (err) {
+        console.error('Failed to remove from continue watching', err);
+      }
     }
   };
 

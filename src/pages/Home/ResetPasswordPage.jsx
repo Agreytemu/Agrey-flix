@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaLock, FaCheckCircle, FaExclamationCircle, FaSpinner } from 'react-icons/fa';
+import { FaLock, FaCheckCircle, FaExclamationCircle, FaSpinner, FaTimesCircle, FaShieldAlt } from 'react-icons/fa';
 import { BiMoviePlay } from 'react-icons/bi';
-import { supabaseService } from '../../utils/supabaseService';
+import { supabaseService, supabase } from '../../utils/supabaseService';
 import { validatePassword, getPasswordStrength, checkRateLimit, logSecurityEvent } from '../../utils/security';
 
 export default function ResetPasswordPage() {
@@ -13,6 +13,71 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
+
+  useEffect(() => {
+    // Check for any URL-based authentication errors (e.g. link expired or already used)
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+    const queryParams = new URLSearchParams(window.location.search);
+    const errorParam = hashParams.get('error_description') || queryParams.get('error_description') || hashParams.get('error') || queryParams.get('error');
+    
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam).replace(/\+/g, ' '));
+      setHasSession(false);
+      setCheckingSession(false);
+      return;
+    }
+
+    if (supabaseService.isConfigured && supabase) {
+      // If URL already contains access tokens, assume the session is valid
+      const hasHash = window.location.hash && (
+        window.location.hash.includes('access_token') ||
+        window.location.hash.includes('type=recovery')
+      );
+      const hasQuery = window.location.search && (
+        window.location.search.includes('code=')
+      );
+
+      if (hasHash || hasQuery) {
+        setHasSession(true);
+        setCheckingSession(false);
+      }
+
+      // 1. Give Supabase a short window to parse the token from window.location (hash fragment or query parameters)
+      const timer = setTimeout(async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setHasSession(true);
+          } else if (!(hasHash || hasQuery)) {
+            setHasSession(false);
+          }
+        } catch (err) {
+          console.error("Session check error:", err);
+        } finally {
+          setCheckingSession(false);
+        }
+      }, 1000);
+
+      // 2. Also listen dynamically to auth state changes (e.g. PASSWORD_RECOVERY or SIGNED_IN event)
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (session || event === 'PASSWORD_RECOVERY') {
+          setHasSession(true);
+          setCheckingSession(false);
+        }
+      });
+
+      return () => {
+        clearTimeout(timer);
+        subscription?.unsubscribe();
+      };
+    } else {
+      // Mock / fallback simulation is always active
+      setHasSession(true);
+      setCheckingSession(false);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,6 +106,11 @@ export default function ResetPasswordPage() {
 
     try {
       if (supabaseService.isConfigured) {
+        // Double-check or wait for session if necessary
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session && window.location.hash.includes('access_token')) {
+          await new Promise(r => setTimeout(r, 600));
+        }
         await supabaseService.updatePassword(password);
         logSecurityEvent('SUCCESS', 'User successfully reset password via recovery link');
       } else {
@@ -84,7 +154,30 @@ export default function ResetPasswordPage() {
           </span>
         </div>
 
-        {success ? (
+        {checkingSession ? (
+          <div className="py-12 space-y-4">
+            <FaSpinner className="text-red-500 text-4xl animate-spin mx-auto" />
+            <p className="text-zinc-400 text-sm font-semibold uppercase tracking-wider animate-pulse">Verifying secure recovery session...</p>
+          </div>
+        ) : !hasSession ? (
+          <div className="space-y-6 py-6">
+            <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto">
+              <FaTimesCircle className="text-red-500 text-3xl" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-white">{error ? "Link Expired or Invalid" : "Invalid Recovery Session"}</h2>
+              <p className="text-zinc-400 text-xs leading-relaxed max-w-sm mx-auto">
+                {error || "No active recovery handshake or authenticated credentials detected. Please request a new password reset link from the homepage sign-in portal."}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/', { replace: true })}
+              className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs tracking-wider uppercase rounded-xl border border-white/5 transition-all"
+            >
+              Back to Home
+            </button>
+          </div>
+        ) : success ? (
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}

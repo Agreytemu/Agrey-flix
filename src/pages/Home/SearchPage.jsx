@@ -130,7 +130,7 @@ export default function SearchPage() {
       animate={{ opacity: 1, y: 0 }} 
       exit={{ opacity: 0, y: -20 }} 
       transition={{ duration: 0.4 }}
-      className="p-6 md:p-10 pb-20"
+      className="px-4 md:px-10 py-6 md:py-10 pb-28 md:pb-20"
     >
       <div className="max-w-4xl mx-auto mb-12 mt-8">
         <div className="relative group">
@@ -254,7 +254,7 @@ export default function SearchPage() {
                  hidden: { opacity: 0 },
                  show: { opacity: 1, transition: { staggerChildren: 0.05 } }
                }}
-               className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6"
+               className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6"
             >
               {displayedItems.map((item) => (
                 <motion.div variants={{ hidden: { opacity: 0, scale: 0.9 }, show: { opacity: 1, scale: 1 } }} key={item.id}>
