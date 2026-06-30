@@ -1184,7 +1184,7 @@ export default function LocalLibraryPage() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-[#0F0F10] border-t border-white/5 py-5 px-6 shadow-2xl flex flex-col gap-4 pointer-events-auto"
+            className="fixed bottom-[68px] md:bottom-0 left-0 right-0 z-40 bg-[#0F0F10] border-t border-white/5 py-3.5 px-4 md:py-5 md:px-6 shadow-2xl flex flex-col gap-3 md:gap-4 pointer-events-auto"
           >
             {/* Secondary invisible HTML5 player container */}
             <audio 

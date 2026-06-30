@@ -59,7 +59,7 @@ export default function VideoPlayer({
         type: type || 'movie',
         issueType: reportIssueType,
         details: reportDetails,
-        reporterEmail: reportEmail || 'anonymous@weflix.com'
+        reporterEmail: reportEmail || 'anonymous@agreyflix.com'
       });
       setReportSuccess('Thank you! Your report has been successfully submitted.');
       setReportDetails('');
@@ -178,7 +178,7 @@ export default function VideoPlayer({
     const saveProgress = (data) => {
       if (!data || !data.mediaId || data.currentTime <= 0 || data.duration <= 0) return;
       try {
-        const STORAGE_KEY = 'weflix_continue_watching_cache';
+        const STORAGE_KEY = 'agreyflix_continue_watching_cache';
         const raw = localStorage.getItem(STORAGE_KEY);
         let list = [];
         if (raw) {

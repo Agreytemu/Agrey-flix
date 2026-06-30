@@ -37,6 +37,7 @@ import ContactPage from './pages/Home/ContactPage';
 import PrivacyPage from './pages/Home/PrivacyPage';
 import TermsPage from './pages/Home/TermsPage';
 import LocalLibraryPage from './pages/Home/LocalLibraryPage';
+import AppDownloadPage from './pages/Home/AppDownloadPage';
 
 function App() {
   useEffect(() => {
@@ -111,6 +112,7 @@ function App() {
           
           {/* Routes that don't need onboarding checks */}
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/download-app" element={<AppDownloadPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/privacy-policy" element={<PrivacyPage />} />

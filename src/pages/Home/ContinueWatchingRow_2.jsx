@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaPlay, FaTimes } from 'react-icons/fa';
 import { supabaseService } from '../../utils/supabaseService';
 
-const STORAGE_KEY = 'weflix_continue_watching_cache';
+const STORAGE_KEY = 'agreyflix_continue_watching_cache';
 
 // Mockup Data for UI Preview
 const MOCK_CONTINUE_WATCHING = [];
@@ -84,8 +84,8 @@ export default function ContinueWatchingRow_2() {
         }
       }
     };
-    window.addEventListener('weflix_continue_watching_updated', handleLiveUpdate);
-    return () => window.removeEventListener('weflix_continue_watching_updated', handleLiveUpdate);
+    window.addEventListener('agreyflix_continue_watching_updated', handleLiveUpdate);
+    return () => window.removeEventListener('agreyflix_continue_watching_updated', handleLiveUpdate);
   }, []);
 
   useEffect(() => {

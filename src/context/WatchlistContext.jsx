@@ -3,7 +3,7 @@ import { supabaseService } from '../utils/supabaseService';
 
 const WatchlistContext = createContext();
 
-const STORAGE_KEY = 'weflix_watchlist_cache';
+const STORAGE_KEY = 'agreyflix_watchlist_cache';
 let debounceTimer = null; // Kutunza timeout registry kwa ajili ya localStorage I/O
 
 export function WatchlistProvider({ children }) {

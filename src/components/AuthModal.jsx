@@ -78,6 +78,9 @@ export default function AuthModal({ isOpen, onClose }) {
   const [pendingGoogleCred, setPendingGoogleCred] = useState(null);
 
   const [verificationSent, setVerificationSent] = useState(false);
+  const [showResend, setShowResend] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   // Cloudflare Turnstile
   const turnstileRef = useRef(null);
@@ -123,6 +126,8 @@ export default function AuthModal({ isOpen, onClose }) {
     setResetSent(false);
     setPendingGoogleCred(null);
     setVerificationSent(false);
+    setShowResend(false);
+    setResendSuccess(false);
   };
 
   const handleForgotPassword = async (e) => {
@@ -140,10 +145,25 @@ export default function AuthModal({ isOpen, onClose }) {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (!email) return;
+    setResendLoading(true);
+    try {
+      await supabaseService.resendVerificationEmail(email);
+      setResendSuccess(true);
+    } catch (err) {
+      setError(getErrorMessage(err, true));
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setShowResend(false);
+    setResendSuccess(false);
 
     const rateLimitAction = isLogin ? 'login_attempt' : 'signup_attempt';
     if (!checkRateLimit(rateLimitAction, 5, 60000)) {
@@ -160,6 +180,18 @@ export default function AuthModal({ isOpen, onClose }) {
         setLoading(false);
         return;
       }
+
+      // Check if email already exists
+      try {
+        const emailExists = await supabaseService.checkEmailExists(email);
+        if (emailExists) {
+          setError('This email address is already registered on AgreyFlix. Please go to the "Log In" tab to access your account.');
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error checking email existence:', err);
+      }
     }
 
     try {
@@ -168,7 +200,8 @@ export default function AuthModal({ isOpen, onClose }) {
         const result = await supabaseService.signIn(email, password);
 
         if (supabaseService.isConfigured && !result.emailVerified) {
-          setError('Please verify your email address before logging in. Check your inbox or spam folder.');
+          setError('Your email is not verified yet. Please check your verification email to verify your account, or click below to request another one.');
+          setShowResend(true);
           await supabaseService.signOut();
           setLoading(false);
           return; // Stop early
@@ -271,10 +304,31 @@ export default function AuthModal({ isOpen, onClose }) {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -4 }}
                       transition={{ duration: 0.2 }}
-                      className="flex items-start gap-2.5 mb-6 bg-red-500/10 border border-red-500/25 rounded-xl px-4 py-3"
+                      className="flex flex-col gap-2 mb-6 bg-red-500/10 border border-red-500/25 rounded-xl px-4 py-3"
                     >
-                      <FaExclamationCircle className="text-red-400 text-base shrink-0 mt-0.5" />
-                      <p className="text-red-300 text-sm font-medium leading-snug">{error}</p>
+                      <div className="flex items-start gap-2.5">
+                        <FaExclamationCircle className="text-red-400 text-base shrink-0 mt-0.5" />
+                        <p className="text-red-300 text-sm font-medium leading-snug">{error}</p>
+                      </div>
+                      {showResend && (
+                        <div className="mt-2 pl-6">
+                          {resendSuccess ? (
+                            <span className="text-green-400 text-xs font-bold flex items-center gap-1">
+                              <FaCheckCircle size={12} /> Verification email sent!
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={resendLoading}
+                              onClick={handleResendVerification}
+                              className="text-xs text-red-400 hover:text-red-300 font-bold underline cursor-pointer transition-colors flex items-center gap-1.5"
+                            >
+                              {resendLoading && <FaSpinner className="animate-spin" size={10} />}
+                              Resend Verification Email
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </motion.div>
                   ) : (
                     <motion.p

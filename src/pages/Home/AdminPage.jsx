@@ -331,7 +331,7 @@ export default function AdminPage() {
   };
 
   const handleClearCache = () => {
-    localStorage.removeItem('weflix_continue_watching_cache');
+    localStorage.removeItem('agreyflix_continue_watching_cache');
     addLog('AUDIT', 'Flushed client continue watching session cache parameters.');
     alert('Cache successfully cleared.');
   };
@@ -586,7 +586,7 @@ export default function AdminPage() {
               <div className="space-y-6">
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                   {[
-                    { label: 'Total Accounts', val: users.length, icon: FaUsers, col: 'text-red-500' },
+                    { label: 'Total Fetch', val: users.length, icon: FaUsers, col: 'text-red-500' },
                     { label: 'Active Streams', val: activeProfiles.length, icon: FaHeartbeat, col: 'text-green-500' },
                     { label: 'Total Queries', val: calcTotalStreams(), icon: FaPlay, col: 'text-blue-500' },
                     { label: 'Subscribers', val: totalSubscribers, icon: FaCrown, col: 'text-yellow-500' },
@@ -761,6 +761,7 @@ export default function AdminPage() {
                         <tr className="border-b border-white/5 text-[9px] uppercase font-black text-zinc-500 tracking-wider">
                           <th className="py-3 px-2">Display Name</th>
                           <th className="py-3 px-2">Email</th>
+                          <th className="py-3 px-2 text-center">Verification</th>
                           <th className="py-3 px-2 text-center">Watchlist</th>
                           <th className="py-3 px-2 text-center">Subscription</th>
                           <th className="py-3 px-2 text-center">Admin Status</th>
@@ -782,6 +783,17 @@ export default function AdminPage() {
                               <tr key={u.id} className="hover:bg-white/[0.01]">
                                 <td className="py-3 px-2 font-bold text-white">{u.display_name || 'AgreyFlix User'}</td>
                                 <td className="py-3 px-2 font-semibold text-zinc-400">{u.email}</td>
+                                <td className="py-3 px-2 text-center">
+                                  {u.email_verified === true || u.email_verified === 1 || u.email_verified === 'true' ? (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-500/10 text-green-500 border border-green-500/20 text-[9px] font-black uppercase">
+                                      <FaCheck size={8} /> Verified
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 text-[9px] font-black uppercase">
+                                      <FaTimes size={8} /> Unverified
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="py-3 px-2 text-center font-mono font-black">{u.watchlist?.length || 0}</td>
                                 <td className="py-3 px-2 text-center">
                                   <button 

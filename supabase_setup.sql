@@ -1,4 +1,4 @@
--- SUPABASE SETUP SCRIPT FOR WEFLIX PORTAL
+-- SUPABASE SETUP SCRIPT FOR AGREYFLIX PORTAL
 -- Run this script in the Supabase SQL Editor (https://supabase.com) to initialize your database structure,
 -- configure automatic user synchronization, and enable Row-Level Security (RLS).
 
@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   continue_watching JSONB DEFAULT '[]'::jsonb,
   preferences_set BOOLEAN DEFAULT FALSE,
   preferences JSONB DEFAULT '{}'::jsonb,
+  email_verified BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -41,7 +42,7 @@ CREATE POLICY "Allow individual insert access" ON public.profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, display_name, photo_url, watchlist, continue_watching, preferences_set, preferences)
+  INSERT INTO public.profiles (id, email, display_name, photo_url, watchlist, continue_watching, preferences_set, preferences, email_verified)
   VALUES (
     new.id,
     new.email,
@@ -50,7 +51,8 @@ BEGIN
     COALESCE(new.raw_user_meta_data->'watchlist', '[]'::jsonb),
     COALESCE(new.raw_user_meta_data->'continueWatching', '[]'::jsonb),
     COALESCE((new.raw_user_meta_data->>'preferencesSet')::boolean, false),
-    COALESCE(new.raw_user_meta_data->'preferences', '{}'::jsonb)
+    COALESCE(new.raw_user_meta_data->'preferences', '{}'::jsonb),
+    (new.email_confirmed_at IS NOT NULL)
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
@@ -77,8 +79,26 @@ CREATE TRIGGER update_profiles_timestamp
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.handle_update_timestamp();
 
--- 7. Add is_admin column to profiles table
+-- 7. Add is_admin and email_verified columns to profiles table
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_admin INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+
+-- Automatically update profiles.email_verified when auth.users.email_confirmed_at changes
+CREATE OR REPLACE FUNCTION public.handle_user_verification_update()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.profiles
+  SET email_verified = (NEW.email_confirmed_at IS NOT NULL)
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_verified ON auth.users;
+CREATE TRIGGER on_auth_user_verified
+  AFTER UPDATE OF email_confirmed_at ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_user_verification_update();
 
 -- 8. Create the public notifications table
 CREATE TABLE IF NOT EXISTS public.notifications (

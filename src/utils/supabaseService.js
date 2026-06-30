@@ -61,7 +61,7 @@ export const verifyAdmin = () => {
 // ==========================================
 const getMockUsers = () => {
   try {
-    const data = localStorage.getItem('weflix_mock_users');
+    const data = localStorage.getItem('agreyflix_mock_users');
     return data ? JSON.parse(data) : {};
   } catch (e) {
     return {};
@@ -70,13 +70,13 @@ const getMockUsers = () => {
 
 const saveMockUsers = (users) => {
   try {
-    localStorage.setItem('weflix_mock_users', JSON.stringify(users));
+    localStorage.setItem('agreyflix_mock_users', JSON.stringify(users));
   } catch (e) {}
 };
 
 const getMockSession = () => {
   try {
-    const data = localStorage.getItem('weflix_mock_session');
+    const data = localStorage.getItem('agreyflix_mock_session');
     return data ? JSON.parse(data) : null;
   } catch (e) {
     return null;
@@ -86,9 +86,9 @@ const getMockSession = () => {
 const saveMockSession = (user) => {
   try {
     if (user) {
-      localStorage.setItem('weflix_mock_session', JSON.stringify(user));
+      localStorage.setItem('agreyflix_mock_session', JSON.stringify(user));
     } else {
-      localStorage.removeItem('weflix_mock_session');
+      localStorage.removeItem('agreyflix_mock_session');
     }
   } catch (e) {}
 };
@@ -135,13 +135,25 @@ if (isConfigured && supabase) {
         .then(({ data, error }) => {
           if (data && !error) {
             const dbProfile = data;
+            
+            // Self-healing: if email is confirmed in Auth but not updated in public profile, update it silently
+            const isEmailConfirmed = !!user.email_confirmed_at;
+            if (isEmailConfirmed && !dbProfile.email_verified) {
+              supabase
+                .from('profiles')
+                .update({ email_verified: true })
+                .eq('id', user.id)
+                .then(() => {})
+                .catch(() => {});
+            }
+
             const updatedUser = {
               uid: user.id,
               id: user.id,
               displayName: dbProfile.display_name || user.user_metadata?.displayName || user.user_metadata?.full_name || 'Guest User',
               email: user.email,
               photoURL: dbProfile.photo_url || user.user_metadata?.avatar_url || null,
-              emailVerified: !!user.email_confirmed_at,
+              emailVerified: isEmailConfirmed,
               watchlist: dbProfile.watchlist || user.user_metadata?.watchlist || [],
               continueWatching: dbProfile.continue_watching || user.user_metadata?.continueWatching || [],
               preferencesSet: dbProfile.preferences_set || user.user_metadata?.preferencesSet || false,
@@ -248,6 +260,55 @@ export const supabaseService = {
       notifyListeners(newUser);
 
       return { user: newUser, sessionRequired: false };
+    }
+  },
+
+  /**
+   * Check if a user with the given email address already exists.
+   */
+  checkEmailExists: async (email) => {
+    if (isConfigured && supabase) {
+      try {
+        // Try RPC check first
+        const { data, error } = await supabase.rpc('check_email_exists', { email_to_check: email.trim() });
+        if (!error && typeof data === 'boolean') {
+          return data;
+        }
+
+        // Fallback: query profiles
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email.trim().toLowerCase())
+          .maybeSingle();
+        return !!profile;
+      } catch (err) {
+        console.error('Error checking email exists:', err);
+        return false;
+      }
+    } else {
+      const users = getMockUsers();
+      return !!users[email.trim().toLowerCase()];
+    }
+  },
+
+  /**
+   * Resends the verification email for signup.
+   */
+  resendVerificationEmail: async (email) => {
+    if (isConfigured && supabase) {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+        options: {
+          emailRedirectTo: 'https://agrey-flix.vercel.app/verify-email'
+        }
+      });
+      if (error) throw error;
+      return true;
+    } else {
+      console.log(`[Mock Resend] Resent verification email to ${email}`);
+      return true;
     }
   },
 
@@ -494,9 +555,9 @@ export const supabaseService = {
    */
   updateContinueWatching: async (continueWatching) => {
     if (!currentSessionUser) {
-      const STORAGE_KEY = 'weflix_continue_watching_cache';
+      const STORAGE_KEY = 'agreyflix_continue_watching_cache';
       localStorage.setItem(STORAGE_KEY, JSON.stringify(continueWatching));
-      window.dispatchEvent(new Event('weflix_continue_watching_updated'));
+      window.dispatchEvent(new Event('agreyflix_continue_watching_updated'));
       return;
     }
     const mergedUser = { ...currentSessionUser, continueWatching };
@@ -533,14 +594,14 @@ export const supabaseService = {
     }
 
     notifyListeners(mergedUser);
-    window.dispatchEvent(new Event('weflix_continue_watching_updated'));
+    window.dispatchEvent(new Event('agreyflix_continue_watching_updated'));
   },
 
   /**
    * Save or update a single Continue Watching item with progress and cache it.
    */
   saveContinueWatchingItem: async (item) => {
-    const STORAGE_KEY = 'weflix_continue_watching_cache';
+    const STORAGE_KEY = 'agreyflix_continue_watching_cache';
     let list = [];
     const cached = localStorage.getItem(STORAGE_KEY);
     if (cached) {
@@ -570,7 +631,7 @@ export const supabaseService = {
     if (currentSessionUser) {
       await supabaseService.updateContinueWatching(updatedList);
     } else {
-      window.dispatchEvent(new Event('weflix_continue_watching_updated'));
+      window.dispatchEvent(new Event('agreyflix_continue_watching_updated'));
     }
   },
 
@@ -578,14 +639,38 @@ export const supabaseService = {
    * Sends password reset email.
    */
   sendPasswordResetEmail: async (email) => {
+    const cleanEmail = email.trim().toLowerCase();
     if (isConfigured && supabase) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // Fetch the user's profile to see if they are registered and verified
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('email_verified')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (!profile) {
+        throw new Error('This email address is not registered on AgreyFlix.');
+      }
+
+      if (!profile.email_verified) {
+        throw new Error('Your email address is not verified yet. Please verify your email first before attempting to reset your password.');
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo: 'https://agrey-flix.vercel.app/reset-password'
       });
       if (error) throw error;
     } else {
-      // Mock success response
-      console.log(`[Mock Reset] Password reset instructions sent to ${email}`);
+      // Mock flow
+      const users = getMockUsers();
+      const matchedUser = users[cleanEmail];
+      if (!matchedUser) {
+        throw new Error('This email address is on registered on AgreyFlix.');
+      }
+      if (matchedUser.emailVerified === false) {
+        throw new Error('Your email address is not verified yet. Please verify your email first before attempting to reset your password.');
+      }
+      console.log(`[Mock Reset] Password reset instructions sent to ${cleanEmail}`);
     }
   },
 
@@ -756,7 +841,10 @@ export const supabaseService = {
         console.error('Failed to fetch profiles from Supabase:', error);
         return [];
       }
-      return data || [];
+      return (data || []).map(p => ({
+        ...p,
+        email_verified: p.email_verified === true || p.email_verified === 1 || p.preferences_set === true || p.preferences_set === 1
+      }));
     } else {
       const users = getMockUsers();
       return Object.values(users).map(({ password, ...user }) => ({
@@ -768,6 +856,7 @@ export const supabaseService = {
         is_admin: (user.isAdmin || user.email?.toLowerCase() === 'webbrowsera@gmail.com') ? 1 : 0,
         is_subscribed: (user.isSubscribed || user.is_subscribed) ? 1 : 0,
         is_archived: user.is_archived || 0,
+        email_verified: user.emailVerified !== false,
         created_at: user.created_at || new Date().toISOString()
       }));
     }

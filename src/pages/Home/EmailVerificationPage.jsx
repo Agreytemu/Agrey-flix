@@ -66,7 +66,7 @@ function EmailVerificationContent() {
           const userNow = supabaseService.getCurrentUser();
           if (userNow && userNow.emailVerified) {
             setStatus('success');
-            setMessage('Your email has been successfully verified! You can now log in and explore WeFlix.');
+            setMessage('Your email has been successfully verified! You can now log in and explore AgreyFlix.');
           } else if (hashParams.get('access_token') || queryParams.get('access_token')) {
             setStatus('success');
             setMessage('Your email has been successfully verified! Welcome aboard!');
@@ -80,7 +80,7 @@ function EmailVerificationContent() {
         // In Mock Flow, we can simulate immediate success
         setTimeout(() => {
           setStatus('success');
-          setMessage('Your email has been successfully verified! Welcome to WeFlix!');
+          setMessage('Your email has been successfully verified! Welcome to AgreyFlix!');
         }, 1000);
       }
     };

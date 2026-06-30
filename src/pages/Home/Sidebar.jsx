@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { FaSearch, FaHome, FaFilm, FaTv, FaChartLine, FaPlus, FaSignOutAlt, FaMagic, FaGlobeAfrica, FaAward, FaCalendarAlt, FaShieldAlt, FaBell, FaTimes, FaCircle, FaCheckCircle, FaUser, FaHeart, FaCog, FaThLarge, FaFolder } from 'react-icons/fa';
+import { FaSearch, FaHome, FaFilm, FaTv, FaChartLine, FaPlus, FaSignOutAlt, FaMagic, FaGlobeAfrica, FaAward, FaCalendarAlt, FaShieldAlt, FaBell, FaTimes, FaCircle, FaCheckCircle, FaUser, FaHeart, FaCog, FaThLarge, FaFolder, FaAndroid } from 'react-icons/fa';
 import { BiMoviePlay } from 'react-icons/bi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProfile } from '../../context/ProfileContext';
@@ -80,6 +80,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { icon: FaChartLine, path: '/trending', label: 'Trending' },
     { icon: FaPlus, path: '/watchlist', label: 'Watchlist' },
     { icon: FaFolder, path: '/library', label: 'Device Library' },
+    { icon: FaAndroid, path: '/download-app', label: 'Download App' },
     { icon: FaThLarge, path: '/hub', label: 'Features Hub' },
     { icon: FaCog, path: '/settings', label: 'Settings' },
     { icon: FaUser, path: '/profile', label: 'Profile' },
