@@ -1,0 +1,4 @@
+
+if (new File('/data/data/com.termux').exists()) {
+    project.ext.set("android.aapt2FromMavenOverride", "/data/data/com.termux/files/home/my-sdk/build-tools/34.0.0/aapt2")
+}

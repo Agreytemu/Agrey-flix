@@ -1,5 +1,7 @@
 package com.agreyflix.app
 
+import android.content.pm.PackageManager
+
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
