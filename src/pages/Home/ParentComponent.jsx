@@ -4,7 +4,7 @@ import Sidebar from './Sidebar';
 import AuthModal from '../../components/AuthModal';
 import AgreyFlixLoader from '../../components/AgreyFlixLoader';
 import { AnimatePresence } from 'framer-motion';
-import { FaSearch, FaHome, FaFilm, FaTv, FaUser, FaCog, FaThLarge, FaShieldAlt, FaFolder } from 'react-icons/fa';
+import { FaSearch, FaHome, FaFilm, FaTv, FaUser, FaCog, FaThLarge, FaShieldAlt, FaFolder, FaAndroid } from 'react-icons/fa';
 import { BiMoviePlay } from 'react-icons/bi';
 import { useProfile } from '../../context/ProfileContext';
 
@@ -152,16 +152,28 @@ export default function ParentComponent() {
           <span className="text-[10px] tracking-wider font-semibold">Hub</span>
         </NavLink>
 
-        {/* Library */}
-        <NavLink
-          to="/library"
-          className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
-            isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          <FaFolder size={20} />
-          <span className="text-[10px] tracking-wider font-semibold">Library</span>
-        </NavLink>
+        {/* Library / Get App conditional */}
+        {navigator.userAgent.includes("AgreyFlixAndroidApp") ? (
+          <NavLink
+            to="/library"
+            className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
+              isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <FaFolder size={20} />
+            <span className="text-[10px] tracking-wider font-semibold">Library</span>
+          </NavLink>
+        ) : (
+          <NavLink
+            to="/download-app"
+            className={({ isActive }) => `flex flex-col items-center gap-1 transition-all duration-300 ${
+              isActive ? 'text-red-500 scale-110 font-bold' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <FaAndroid size={20} />
+            <span className="text-[10px] tracking-wider font-semibold">Get App</span>
+          </NavLink>
+        )}
 
         {/* Admin (Only if Admin) */}
         {profile?.isAdmin && (

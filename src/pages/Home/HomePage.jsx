@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import HeroBanner from './HeroBanner';
 import { useProfile } from '../../context/ProfileContext';
-import { FaCheckCircle, FaCalendarAlt, FaTimes, FaGift } from 'react-icons/fa';
+import { 
+  FaCheckCircle, FaCalendarAlt, FaTimes, FaGift,
+  FaAndroid, FaDownload, FaMobileAlt, FaArrowRight, FaStar, FaShieldAlt
+} from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import TrendingRow from './TrendingRow';
 import ContinueWatchingRow_2 from './ContinueWatchingRow_2';
 import TrendingNowCarousel from '../../components/TrendingNowCarousel';
@@ -13,8 +17,11 @@ import { HomePageSkeleton } from '../../components/Skeletons';
 
 export default function HomePage() {
   const { profile } = useProfile();
+  const navigate = useNavigate();
   
   const [showFirstWelcomeModal, setShowFirstWelcomeModal] = useState(false);
+  const [showAppPromo, setShowAppPromo] = useState(false);
+  const [showTopAppBanner, setShowTopAppBanner] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -28,12 +35,55 @@ export default function HomePage() {
     }
   }, [profile]);
 
+  useEffect(() => {
+    const isAndroidApp = navigator.userAgent.includes("AgreyFlixAndroidApp");
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const dismissedPopup = localStorage.getItem('agreyflix_app_download_dismissed') === 'true';
+    const dismissedBanner = localStorage.getItem('agreyflix_app_banner_dismissed') === 'true';
+
+    if (isMobileDevice && !isAndroidApp) {
+      if (!dismissedPopup) {
+        const timer = setTimeout(() => {
+          setShowAppPromo(true);
+        }, 3000);
+        return () => clearTimeout(timer);
+      } else if (!dismissedBanner) {
+        setShowTopAppBanner(true);
+      }
+    }
+  }, []);
+
   const handleCloseWelcomeModal = () => {
     if (profile) {
       const storageKey = `agreyflix_first_welcome_shown_${profile.id || profile.uid}`;
       localStorage.setItem(storageKey, 'true');
     }
     setShowFirstWelcomeModal(false);
+  };
+
+  const handleCloseAppPromo = () => {
+    localStorage.setItem('agreyflix_app_download_dismissed', 'true');
+    setShowAppPromo(false);
+    // Show top banner instead as a persistent reminder since they just dismissed the popup
+    const isAndroidApp = navigator.userAgent.includes("AgreyFlixAndroidApp");
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const dismissedBanner = localStorage.getItem('agreyflix_app_banner_dismissed') === 'true';
+    if (isMobileDevice && !isAndroidApp && !dismissedBanner) {
+      setShowTopAppBanner(true);
+    }
+  };
+
+  const handleCloseAppBanner = () => {
+    localStorage.setItem('agreyflix_app_banner_dismissed', 'true');
+    setShowTopAppBanner(false);
+  };
+
+  const handleDownloadApkDirectly = () => {
+    localStorage.setItem('agreyflix_app_download_dismissed', 'true');
+    setShowAppPromo(false);
+    
+    // Guide user to the help page for step-by-step instructions and dynamic package selection
+    navigate('/download-app');
   };
 
   const greeting = (() => {
@@ -327,6 +377,42 @@ export default function HomePage() {
       exit={{ opacity: 0 }} 
       className="pb-28 md:pb-20"
     >
+      {/* Sticky floating app download banner for mobile browser users */}
+      <AnimatePresence>
+        {showTopAppBanner && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="w-full bg-gradient-to-r from-red-950 via-[#0B0B0C] to-[#120505] border-b border-red-500/10 px-4 py-3 flex items-center justify-between text-zinc-300 gap-3 relative overflow-hidden z-40"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-red-600/10 text-red-500 flex items-center justify-center shrink-0 border border-red-500/10">
+                <FaAndroid size={16} className="animate-bounce" />
+              </div>
+              <p className="text-[11px] font-bold text-zinc-200 truncate leading-tight">
+                Play offline & scan your device media library with the official <span className="text-red-500 font-extrabold">AgreyFlix App</span>!
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button 
+                onClick={() => navigate('/download-app')}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-black text-[9px] uppercase tracking-widest rounded-lg transition-all shadow shadow-red-600/20 active:scale-95 cursor-pointer"
+              >
+                Get App
+              </button>
+              <button 
+                onClick={handleCloseAppBanner}
+                className="p-1 hover:bg-white/5 text-zinc-500 hover:text-white rounded-lg transition-all"
+                title="Dismiss"
+              >
+                <FaTimes size={12} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Helmet>
         <title>Home Dashboard | AgreyFlix Streaming Hub</title>
         <meta name="description" content="Discover popular movies, top series, Swahili translations, animations, and high-speed streaming rows curated specifically for you on AgreyFlix." />
@@ -529,6 +615,107 @@ export default function HomePage() {
                 >
                   Start Streaming Now
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Dynamic App Promotion Modal for Mobile Web Users */}
+      <AnimatePresence>
+        {showAppPromo && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.85 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseAppPromo}
+              className="absolute inset-0 bg-black/90 backdrop-blur-md"
+            />
+            
+            {/* Modal Box */}
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              className="relative w-full max-w-md bg-[#09090A] border border-red-500/10 rounded-3xl p-6 shadow-2xl overflow-hidden z-10"
+            >
+              {/* Top ambient glow */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-red-600/10 rounded-full blur-[80px] pointer-events-none" />
+              
+              {/* Close Button */}
+              <button 
+                onClick={handleCloseAppPromo}
+                className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full text-zinc-500 hover:text-white transition-all outline-none border border-transparent cursor-pointer z-20"
+                title="Dismiss"
+              >
+                <FaTimes size={16} />
+              </button>
+
+              <div className="relative z-10 text-center flex flex-col items-center">
+                {/* Android App Logo Badge */}
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-red-500 shadow-xl shadow-red-500/20 flex items-center justify-center mb-6">
+                  <FaAndroid className="text-white text-3xl animate-bounce" />
+                </div>
+
+                <h2 className="text-2xl font-black text-white tracking-tight mb-2 uppercase">
+                  AgreyFlix Mobile App
+                </h2>
+                <p className="text-red-500 text-xs font-black uppercase tracking-widest mb-4">
+                  Now Available on Android (v1.1)
+                </p>
+                
+                <p className="text-zinc-400 text-xs font-semibold mb-6 leading-relaxed">
+                  Get the ultimate streaming experience! Download the official AgreyFlix APK to unlock premium device capabilities and immersive viewing controls.
+                </p>
+
+                {/* Mobile Features Checklist */}
+                <div className="w-full bg-zinc-950/80 border border-white/5 rounded-2xl p-4 mb-6 flex flex-col gap-3 text-left">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-md bg-red-500/10 flex items-center justify-center text-red-500 text-[10px] shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-200 font-extrabold">Device Media Library</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5 font-semibold">Scan, organize, and play your own local videos and audio files directly inside our player!</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-md bg-red-500/10 flex items-center justify-center text-red-500 text-[10px] shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-200 font-extrabold">Immersive Player & CD Vinyl Art</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5 font-semibold">Stellar controls: speed dials, Picture-in-Picture mode, and rotating album music disk.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-md bg-red-500/10 flex items-center justify-center text-red-500 text-[10px] shrink-0 mt-0.5">
+                      3
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-200 font-extrabold">Zero Browser Clutter</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5 font-semibold">Launches in pure standalone fullscreen mode with high-performance cache routing.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full space-y-2.5">
+                  <button 
+                    onClick={handleDownloadApkDirectly}
+                    className="w-full bg-red-600 hover:bg-red-500 text-white font-black text-xs tracking-widest uppercase py-3.5 px-6 rounded-2xl transition-all shadow-lg shadow-red-600/10 flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+                  >
+                    <FaDownload /> Get Official APK
+                  </button>
+                  <button 
+                    onClick={handleCloseAppPromo}
+                    className="w-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-widest py-3.5 rounded-2xl transition-all border border-white/5 cursor-pointer"
+                  >
+                    Maybe Later
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

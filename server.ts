@@ -1,5 +1,7 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -118,6 +120,81 @@ STRICT STYLE AND FORMATTING RULES:
       res.status(500).json({ 
         error: err.message || "An unexpected error occurred while communicating with the Serra AI Brain." 
       });
+    }
+  });
+
+  // Dynamic route to list actual APK files in /public folder
+  app.get("/api/apps/apk-list", async (req, res) => {
+    try {
+      const publicDir = path.join(process.cwd(), "public");
+
+      if (!fs.existsSync(publicDir)) {
+        fs.mkdirSync(publicDir, { recursive: true });
+      }
+
+      // Read files currently present in public directory (No bootstrapping/creation of fake files)
+      const files = fs.readdirSync(publicDir);
+      const apkFiles = files.filter((f: string) => f.toLowerCase().endsWith(".apk"));
+
+      const list = apkFiles.map((filename: string) => {
+        const filePath = path.join(publicDir, filename);
+        const stats = fs.statSync(filePath);
+        
+        // Calculate exact real-time file size on disk
+        const sizeInBytes = stats.size;
+        let sizeStr = "";
+        if (sizeInBytes >= 1024 * 1024) {
+          sizeStr = `${(sizeInBytes / (1024 * 1024)).toFixed(2)} MB`;
+        } else if (sizeInBytes >= 1024) {
+          sizeStr = `${(sizeInBytes / 1024).toFixed(2)} KB`;
+        } else {
+          sizeStr = `${sizeInBytes} Bytes`;
+        }
+
+        // Exact real-world modification date
+        const formattedDate = new Intl.DateTimeFormat("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        }).format(stats.mtime);
+
+        // Crypto hashing for actual file contents (No simulated mockup values)
+        let actualSha = "N/A";
+        try {
+          const fileBuffer = fs.readFileSync(filePath);
+          const hash = crypto.createHash("sha256");
+          hash.update(fileBuffer);
+          actualSha = `sha256-${hash.digest("hex").slice(0, 16)}...`;
+        } catch (hashErr) {
+          console.error("Failed to calculate SHA256:", hashErr);
+        }
+
+        // Dynamically extract version pattern from filename
+        let versionStr = "v1.0";
+        const versionMatch = filename.match(/v?(\d+(\.\d+)*)/i);
+        if (versionMatch) {
+          versionStr = `v${versionMatch[1]}`;
+        } else {
+          versionStr = filename.replace(/\.apk$/i, "").toUpperCase();
+        }
+
+        return {
+          filename,
+          url: `/${filename}`,
+          size: sizeStr,
+          updated: formattedDate,
+          version: versionStr,
+          sha: actualSha
+        };
+      });
+
+      // Sort with latest version first (natural sort on version string)
+      list.sort((a: any, b: any) => b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' }));
+
+      res.json({ success: true, apks: list });
+    } catch (err: any) {
+      console.error("Failed to read APK list from public directory:", err);
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 

@@ -67,6 +67,8 @@ export default function Sidebar({ isOpen, onClose }) {
     return () => window.removeEventListener('newNotification', handleNewNotif);
   }, [profile]);
 
+  const isAndroidApp = navigator.userAgent.includes("AgreyFlixAndroidApp");
+
   const navItems = [
     { icon: FaSearch, path: '/search', label: 'Search' },
     { icon: FaHeart, path: '/for-you', label: 'For You' },
@@ -79,8 +81,10 @@ export default function Sidebar({ isOpen, onClose }) {
     { icon: FaAward, path: '/best-artists', label: 'Rank Artists' },
     { icon: FaChartLine, path: '/trending', label: 'Trending' },
     { icon: FaPlus, path: '/watchlist', label: 'Watchlist' },
-    { icon: FaFolder, path: '/library', label: 'Device Library' },
-    { icon: FaAndroid, path: '/download-app', label: 'Download App' },
+    ...(isAndroidApp 
+      ? [{ icon: FaFolder, path: '/library', label: 'Device Library' }] 
+      : [{ icon: FaAndroid, path: '/download-app', label: 'Download App' }]
+    ),
     { icon: FaThLarge, path: '/hub', label: 'Features Hub' },
     { icon: FaCog, path: '/settings', label: 'Settings' },
     { icon: FaUser, path: '/profile', label: 'Profile' },

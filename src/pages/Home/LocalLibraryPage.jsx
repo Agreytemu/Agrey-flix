@@ -3,11 +3,14 @@ import {
   FaFolder, FaVideo, FaMusic, FaSearch, FaPlay, FaPause, FaFolderOpen, 
   FaRedo, FaTrash, FaChevronRight, FaVolumeUp, FaVolumeMute, FaExpand, 
   FaCompress, FaStepForward, FaStepBackward, FaSync, FaShieldAlt, 
-  FaCheck, FaFileAudio, FaFileVideo, FaClock, FaTimes, FaSlidersH
+  FaCheck, FaFileAudio, FaFileVideo, FaClock, FaTimes, FaSlidersH,
+  FaRandom, FaTv
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 export default function LocalLibraryPage() {
+  const navigate = useNavigate();
   // Permission States: 'prompt', 'granted', 'denied'
   const [permissionStatus, setPermissionStatus] = useState(() => {
     return localStorage.getItem('agreyflix_media_permission_granted') || 'prompt';
@@ -39,6 +42,8 @@ export default function LocalLibraryPage() {
   const [audioVolume, setAudioVolume] = useState(0.8);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [audioLoop, setAudioLoop] = useState(false);
+  const [audioPlaybackSpeed, setAudioPlaybackSpeed] = useState(1.0);
+  const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
 
   // Custom Video Player States
   const [currentVideo, setCurrentVideo] = useState(null); // { file, name, size, url, thumbnail, id }
@@ -49,6 +54,8 @@ export default function LocalLibraryPage() {
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [showVideoControls, setShowVideoControls] = useState(true);
   const [videoPlaybackSpeed, setVideoPlaybackSpeed] = useState(1.0);
+  const [videoAspectRatio, setVideoAspectRatio] = useState('contain'); // 'contain' | 'cover' | 'fill'
+  const [videoToast, setVideoToast] = useState(null);
 
   // References
   const folderInputRef = useRef(null);
@@ -85,6 +92,47 @@ export default function LocalLibraryPage() {
     }
     return () => stopVisualizer();
   }, [activeTab, currentAudio, isAudioPlaying]);
+
+  const isAndroidApp = navigator.userAgent.includes("AgreyFlixAndroidApp");
+
+  if (!isAndroidApp) {
+    return (
+      <div className="min-h-screen bg-[#050505] text-zinc-300 flex flex-col items-center justify-center px-6 py-20 text-center">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-md w-full bg-zinc-950 border border-white/5 p-8 rounded-3xl space-y-6 shadow-2xl relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/10 rounded-full blur-3xl" />
+          <div className="w-16 h-16 bg-red-600/10 text-red-500 rounded-2xl flex items-center justify-center mx-auto text-3xl">
+            <FaFolder />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-black text-white uppercase tracking-wider">Device Library</h1>
+            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-widest text-red-500">Android Feature Only</p>
+          </div>
+          <p className="text-zinc-500 text-xs leading-relaxed font-semibold">
+            The local Device Library is a native feature exclusive to the official AgreyFlix Android Application. It allows you to scan your offline device storage safely, import your own local videos or audio files, and play them directly in our media engine.
+          </p>
+          <div className="pt-4 space-y-3">
+            <button
+              onClick={() => navigate('/download-app')}
+              className="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-lg hover:shadow-red-600/10 cursor-pointer"
+            >
+              Get Android App
+            </button>
+            <button
+              onClick={() => navigate('/home')}
+              className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white font-extrabold text-xs uppercase tracking-widest rounded-2xl transition-all border border-white/5 cursor-pointer"
+            >
+              Back to Home
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   // Handle HTML5 File/Folder imports and generate records
   const handleMediaFiles = async (fileList) => {
@@ -564,9 +612,53 @@ export default function LocalLibraryPage() {
     }
   };
 
+  // Trigger HUD toast notifications on top of video overlay
+  const triggerVideoToast = (message) => {
+    setVideoToast(message);
+  };
+
+  // Automatically clear video toast after delay
+  useEffect(() => {
+    if (videoToast) {
+      const t = setTimeout(() => setVideoToast(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [videoToast]);
+
+  // Toggle Video Aspect Ratio Aspect
+  const toggleVideoAspectRatio = () => {
+    const modes = ['contain', 'cover', 'fill'];
+    const nextIdx = (modes.indexOf(videoAspectRatio) + 1) % modes.length;
+    const nextMode = modes[nextIdx];
+    setVideoAspectRatio(nextMode);
+    triggerVideoToast(`Aspect Ratio: ${nextMode.toUpperCase()}`);
+  };
+
+  // Toggle Picture in Picture Mode
+  const toggleVideoPiP = async () => {
+    if (!videoRef.current) return;
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+        triggerVideoToast("Exited PiP Mode");
+      } else {
+        await videoRef.current.requestPictureInPicture();
+        triggerVideoToast("PiP Mode Activated");
+      }
+    } catch (e) {
+      console.error(e);
+      triggerVideoToast("PiP Mode Not Supported");
+    }
+  };
+
   // Audio track switching forward/backward
   const handlePrevAudioTrack = () => {
     if (localMusic.length <= 1 || !currentAudio) return;
+    if (isShuffleEnabled) {
+      const randomIdx = Math.floor(Math.random() * localMusic.length);
+      handlePlayAudio(localMusic[randomIdx]);
+      return;
+    }
     const currIdx = localMusic.findIndex(x => x.id === currentAudio.id);
     const prevIdx = currIdx <= 0 ? localMusic.length - 1 : currIdx - 1;
     handlePlayAudio(localMusic[prevIdx]);
@@ -574,6 +666,14 @@ export default function LocalLibraryPage() {
 
   const handleNextAudioTrack = () => {
     if (localMusic.length <= 1 || !currentAudio) return;
+    if (isShuffleEnabled) {
+      let randomIdx = Math.floor(Math.random() * localMusic.length);
+      if (randomIdx === localMusic.findIndex(x => x.id === currentAudio.id) && localMusic.length > 1) {
+        randomIdx = (randomIdx + 1) % localMusic.length;
+      }
+      handlePlayAudio(localMusic[randomIdx]);
+      return;
+    }
     const currIdx = localMusic.findIndex(x => x.id === currentAudio.id);
     const nextIdx = currIdx >= localMusic.length - 1 ? 0 : currIdx + 1;
     handlePlayAudio(localMusic[nextIdx]);
@@ -1012,7 +1112,7 @@ export default function LocalLibraryPage() {
             <video 
               ref={videoRef}
               src={currentVideo.url}
-              className="w-full h-full object-contain"
+              className={`w-full h-full object-${videoAspectRatio}`}
               autoPlay
               playsInline
               onTimeUpdate={handleVideoTimeUpdate}
@@ -1042,6 +1142,21 @@ export default function LocalLibraryPage() {
                 <FaStepForward /> +10s
               </span>
             </div>
+
+            {/* Video Player Toast HUD Notification Overlay */}
+            <AnimatePresence>
+              {videoToast && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="absolute top-20 left-1/2 -translate-x-1/2 bg-black/85 border border-white/10 px-5 py-2 rounded-full text-white text-[11px] font-black tracking-widest uppercase shadow-2xl z-40 flex items-center gap-2 pointer-events-none"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-600 animate-ping" />
+                  {videoToast}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Controls Overlay UI */}
             <AnimatePresence>
@@ -1148,6 +1263,7 @@ export default function LocalLibraryPage() {
                               const speed = parseFloat(e.target.value);
                               setVideoPlaybackSpeed(speed);
                               if (videoRef.current) videoRef.current.playbackRate = speed;
+                              triggerVideoToast(`Speed: ${speed}x`);
                             }}
                             className="bg-transparent border-none outline-none text-white cursor-pointer"
                           >
@@ -1160,13 +1276,34 @@ export default function LocalLibraryPage() {
                         </div>
                       </div>
 
-                      {/* Fullscreen Button */}
-                      <button 
-                        onClick={toggleVideoFullscreen}
-                        className="p-2 text-zinc-300 hover:text-white transition-all text-sm"
-                      >
-                        {document.fullscreenElement ? <FaCompress /> : <FaExpand />}
-                      </button>
+                      {/* Extra Aspect-Ratio & PiP Controls */}
+                      <div className="flex items-center gap-2">
+                        {/* Picture-in-Picture */}
+                        <button 
+                          onClick={toggleVideoPiP}
+                          className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all text-xs"
+                          title="Picture-in-Picture"
+                        >
+                          <FaTv />
+                        </button>
+
+                        {/* Aspect Ratio Cycler */}
+                        <button 
+                          onClick={toggleVideoAspectRatio}
+                          className="px-2.5 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all text-[9px] font-black uppercase tracking-widest"
+                          title="Aspect Ratio (Fit / Fill / Stretch)"
+                        >
+                          {videoAspectRatio}
+                        </button>
+
+                        {/* Fullscreen Button */}
+                        <button 
+                          onClick={toggleVideoFullscreen}
+                          className="p-2 text-zinc-300 hover:text-white transition-all text-sm"
+                        >
+                          {document.fullscreenElement ? <FaCompress /> : <FaExpand />}
+                        </button>
+                      </div>
                     </div>
 
                   </div>
@@ -1209,11 +1346,14 @@ export default function LocalLibraryPage() {
               {/* Media Title & Dynamic canvas audio visualizer wave */}
               <div className="flex items-center gap-4 min-w-0 md:w-1/3">
                 {/* Album Vinyl disk Art */}
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-red-600/30 to-zinc-950 flex items-center justify-center shrink-0 border border-red-500/10 relative overflow-hidden shadow-lg shadow-red-600/10 ${
-                  isAudioPlaying ? 'animate-pulse' : ''
+                <div className={`w-14 h-14 rounded-full bg-gradient-to-br from-red-600/30 to-zinc-950 flex items-center justify-center shrink-0 border border-red-500/10 relative overflow-hidden shadow-lg shadow-red-600/10 ${
+                  isAudioPlaying ? 'animate-[spin_8s_linear_infinite]' : ''
                 }`}>
                   <span className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.12)_0%,transparent_70%)]" />
-                  <FaMusic className="text-xl text-red-500" />
+                  <span className="w-4 h-4 rounded-full bg-[#0F0F10] border border-zinc-800 z-10 flex items-center justify-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
+                  </span>
+                  <FaMusic className="text-sm text-red-500 absolute opacity-30" />
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -1232,6 +1372,15 @@ export default function LocalLibraryPage() {
               {/* Audio Playback control Panel buttons */}
               <div className="flex flex-col gap-1.5 md:w-1/3 w-full">
                 <div className="flex items-center justify-center gap-4">
+                  {/* Shuffle Button */}
+                  <button 
+                    onClick={() => setIsShuffleEnabled(!isShuffleEnabled)}
+                    className={`p-2 transition-colors text-xs ${isShuffleEnabled ? 'text-red-500 font-black' : 'text-zinc-500 hover:text-white'}`}
+                    title="Shuffle Playback"
+                  >
+                    <FaRandom className={isShuffleEnabled ? 'animate-pulse' : ''} />
+                  </button>
+
                   <button 
                     onClick={() => setAudioLoop(!audioLoop)}
                     className={`p-2 transition-colors text-xs ${audioLoop ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
@@ -1293,20 +1442,44 @@ export default function LocalLibraryPage() {
                 </div>
               </div>
 
-              {/* Volume sliders */}
-              <div className="hidden md:flex items-center justify-end gap-2.5 w-1/4">
-                <button onClick={toggleAudioMute} className="text-zinc-500 hover:text-white transition-colors">
-                  {isAudioMuted || audioVolume === 0 ? <FaVolumeMute /> : <FaVolumeUp />}
-                </button>
-                <input 
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={isAudioMuted ? 0 : audioVolume}
-                  onChange={handleAudioVolumeChange}
-                  className="w-20 accent-red-600 bg-white/10 rounded-full h-1 outline-none"
-                />
+              {/* Volume & Audio Speed controls */}
+              <div className="hidden md:flex items-center justify-end gap-4 w-1/4">
+                {/* Audio playback speed multiplier */}
+                <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded text-[9px] font-bold">
+                  <FaSlidersH className="text-[8px]" />
+                  <select 
+                    value={audioPlaybackSpeed}
+                    onChange={(e) => {
+                      const speed = parseFloat(e.target.value);
+                      setAudioPlaybackSpeed(speed);
+                      if (audioRef.current) {
+                        audioRef.current.playbackRate = speed;
+                      }
+                    }}
+                    className="bg-transparent border-none outline-none text-zinc-400 cursor-pointer text-[10px]"
+                  >
+                    <option value="0.75" className="bg-[#18181a] text-white">0.75x</option>
+                    <option value="1.0" className="bg-[#18181a] text-white">Normal</option>
+                    <option value="1.25" className="bg-[#18181a] text-white">1.25x</option>
+                    <option value="1.5" className="bg-[#18181a] text-white">1.5x</option>
+                    <option value="2.0" className="bg-[#18181a] text-white">2x</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button onClick={toggleAudioMute} className="text-zinc-500 hover:text-white transition-colors">
+                    {isAudioMuted || audioVolume === 0 ? <FaVolumeMute /> : <FaVolumeUp />}
+                  </button>
+                  <input 
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={isAudioMuted ? 0 : audioVolume}
+                    onChange={handleAudioVolumeChange}
+                    className="w-20 accent-red-600 bg-white/10 rounded-full h-1 outline-none"
+                  />
+                </div>
               </div>
 
             </div>

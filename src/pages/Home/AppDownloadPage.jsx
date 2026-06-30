@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { 
@@ -11,12 +11,37 @@ import { useNavigate } from 'react-router-dom';
 export default function AppDownloadPage() {
   const navigate = useNavigate();
   const [downloadStarted, setDownloadStarted] = useState(false);
+  const [apkList, setApkList] = useState([]);
+  const [selectedApk, setSelectedApk] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // App Metadata Details
-  const appVersion = "v1.2.0-stable";
-  const appSize = "8.4 MB";
-  const appUpdated = "June 30, 2026";
-  const appSHA = "sha256-a3f2b8...c170";
+  useEffect(() => {
+    fetch('/api/apps/apk-list')
+      .then(res => {
+        if (!res.ok) throw new Error("Server responded with error status");
+        return res.json();
+      })
+      .then(data => {
+        if (data.success && data.apks && data.apks.length > 0) {
+          setApkList(data.apks);
+          setSelectedApk(data.apks[0]); // Default to latest version
+        }
+      })
+      .catch(err => {
+        console.error("Error loading dynamic APK list:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  // App Metadata Details resolved from the detected APK list (No mockup hardcoded default fallbacks)
+  const appVersion = selectedApk ? selectedApk.version : null;
+  const appSize = selectedApk ? selectedApk.size : null;
+  const appUpdated = selectedApk ? selectedApk.updated : null;
+  const appSHA = selectedApk ? selectedApk.sha : null;
+  const appUrl = selectedApk ? selectedApk.url : null;
+  const appFilename = selectedApk ? selectedApk.filename : null;
 
   const installationSteps = [
     {
@@ -60,10 +85,10 @@ export default function AppDownloadPage() {
   const handleApkDownload = () => {
     setDownloadStarted(true);
 
-    // Point directly to the production compiled APK path in the public folder
+    // Point to the selected dynamic APK path inside the public folder
     const link = document.createElement('a');
-    link.href = '/AgreyFlix.apk';
-    link.download = `AgreyFlix_${appVersion}.apk`;
+    link.href = appUrl;
+    link.download = appFilename;
     document.body.appendChild(link);
     link.click();
     
@@ -119,53 +144,109 @@ export default function AppDownloadPage() {
             <div className="bg-zinc-950 border border-white/5 p-6 rounded-3xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/10 rounded-full blur-3xl group-hover:bg-red-600/25 transition-all duration-500" />
               
-              <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
-                {/* Custom Vector Launcher Art */}
-                <div className="w-20 h-20 bg-gradient-to-br from-red-500 via-red-600 to-red-800 rounded-3xl flex items-center justify-center shadow-2xl shadow-red-500/30 shrink-0 transform group-hover:scale-105 transition-transform">
-                  <FaAndroid className="text-white text-5px text-5xl animate-pulse" />
+              {loading ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-3">
+                  <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest animate-pulse">Calculating physical binary details...</p>
                 </div>
-
-                <div className="space-y-1.5 text-center sm:text-left flex-1">
-                  <h3 className="text-lg font-black text-white uppercase tracking-wider">AgreyFlix Mobile Companion</h3>
-                  <p className="text-zinc-500 text-xs font-semibold">Official Google AI Studio Secure Distribution</p>
-                  
-                  {/* File Metadata Tags */}
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 pt-2">
-                    <span className="flex items-center gap-1 text-[10px] text-zinc-400 font-mono bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
-                      <FaHashtag className="text-red-500" /> {appVersion}
-                    </span>
-                    <span className="flex items-center gap-1 text-[10px] text-zinc-400 font-mono bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
-                      <FaHdd className="text-amber-500" /> {appSize}
-                    </span>
-                    <span className="flex items-center gap-1 text-[10px] text-zinc-400 font-mono bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
-                      <FaClock className="text-emerald-500" /> {appUpdated}
-                    </span>
+              ) : apkList.length === 0 ? (
+                <div className="relative z-10 text-center py-6 flex flex-col items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500">
+                    <FaExclamationTriangle size={24} />
+                  </div>
+                  <div className="space-y-1.5 max-w-sm">
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider">No APK Packages Found</h3>
+                    <p className="text-zinc-500 text-xs leading-relaxed font-semibold">
+                      Currently, there are no actual <code>.apk</code> packages inside the server's <code>/public</code> directory. To populate this list, please upload your production-compiled APK files directly to the public folder.
+                    </p>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
+                    {/* Custom Vector Launcher Art */}
+                    <div className="w-20 h-20 bg-gradient-to-br from-red-500 via-red-600 to-red-800 rounded-3xl flex items-center justify-center shadow-2xl shadow-red-500/30 shrink-0 transform group-hover:scale-105 transition-transform">
+                      <FaAndroid className="text-white text-5xl animate-pulse" />
+                    </div>
 
-              {/* Main Download Call To Action */}
-              <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <button
-                  onClick={handleApkDownload}
-                  disabled={downloadStarted}
-                  className={`w-full sm:w-auto px-8 py-4 rounded-2xl flex items-center justify-center gap-3 font-extrabold uppercase tracking-widest text-xs transition-all shadow-xl cursor-pointer ${
-                    downloadStarted 
-                      ? 'bg-emerald-600 text-white shadow-emerald-600/10' 
-                      : 'bg-red-600 hover:bg-red-500 hover:shadow-red-600/20 text-white shadow-red-600/10'
-                  }`}
-                >
-                  <FaDownload className={downloadStarted ? "animate-bounce" : ""} />
-                  {downloadStarted ? "Downloading App..." : "Download Official APK"}
-                </button>
+                    <div className="space-y-1.5 text-center sm:text-left flex-1">
+                      <h3 className="text-lg font-black text-white uppercase tracking-wider">AgreyFlix Mobile Companion</h3>
+                      <p className="text-zinc-500 text-xs font-semibold">Official Google AI Studio Secure Distribution</p>
+                      
+                      {/* File Metadata Tags */}
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 pt-2">
+                        <span className="flex items-center gap-1 text-[10px] text-zinc-400 font-mono bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
+                          <FaHashtag className="text-red-500" /> {appVersion}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] text-zinc-400 font-mono bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
+                          <FaHdd className="text-amber-500" /> {appSize}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] text-zinc-400 font-mono bg-white/5 border border-white/5 px-2.5 py-1 rounded-md">
+                          <FaClock className="text-emerald-500" /> {appUpdated}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="flex flex-col items-center sm:items-end text-[10px] font-mono text-zinc-500">
-                  <span className="flex items-center gap-1 text-emerald-500 font-semibold uppercase tracking-wider mb-0.5">
-                    <FaShieldAlt /> 100% Secure File
-                  </span>
-                  <span className="truncate max-w-[200px]">{appSHA}</span>
-                </div>
-              </div>
+                  {/* Dynamic APK Version Selection Panel (If multiple stubs detected in public directory) */}
+                  {apkList.length > 1 && (
+                    <div className="mt-6 pt-5 border-t border-white/5 relative z-10">
+                      <span className="block text-[10px] font-black uppercase tracking-widest text-red-500 mb-2.5">
+                        Multiple Live Packages Detected:
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {apkList.map((apk) => {
+                          const isSelected = selectedApk && selectedApk.filename === apk.filename;
+                          return (
+                            <button
+                              key={apk.filename}
+                              onClick={() => setSelectedApk(apk)}
+                              className={`px-4 py-3 rounded-2xl border text-left transition-all relative flex flex-col justify-center cursor-pointer overflow-hidden outline-none ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-red-950/40 to-[#0c0c0d] border-red-500/40 text-white shadow-lg shadow-red-500/5'
+                                  : 'bg-[#080809] border-white/5 text-zinc-400 hover:bg-white/5 hover:border-white/10 hover:text-white'
+                              }`}
+                            >
+                              {isSelected && (
+                                <span className="absolute top-2.5 right-3 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                              )}
+                              <span className="text-xs font-black tracking-wide truncate">
+                                {apk.version}
+                              </span>
+                              <span className="text-[10px] font-mono text-zinc-500 mt-1">
+                                {apk.size} • {apk.updated}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Main Download Call To Action */}
+                  <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <button
+                      onClick={handleApkDownload}
+                      disabled={downloadStarted}
+                      className={`w-full sm:w-auto px-8 py-4 rounded-2xl flex items-center justify-center gap-3 font-extrabold uppercase tracking-widest text-xs transition-all shadow-xl cursor-pointer ${
+                        downloadStarted 
+                          ? 'bg-emerald-600 text-white shadow-emerald-600/10' 
+                          : 'bg-red-600 hover:bg-red-500 hover:shadow-red-600/20 text-white shadow-red-600/10'
+                      }`}
+                    >
+                      <FaDownload className={downloadStarted ? "animate-bounce" : ""} />
+                      {downloadStarted ? "Downloading App..." : "Download Official APK"}
+                    </button>
+
+                    <div className="flex flex-col items-center sm:items-end text-[10px] font-mono text-zinc-500">
+                      <span className="flex items-center gap-1 text-emerald-500 font-semibold uppercase tracking-wider mb-0.5">
+                        <FaShieldAlt /> 100% Secure File
+                      </span>
+                      <span className="truncate max-w-[200px]">{appSHA}</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Warning / Requirements Box */}
