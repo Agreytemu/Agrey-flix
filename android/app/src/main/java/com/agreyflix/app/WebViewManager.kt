@@ -12,6 +12,9 @@ import android.webkit.*
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Toast
+import android.content.ContentUris
+import android.provider.MediaStore
+import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.appcompat.app.AppCompatActivity
 
@@ -64,6 +67,12 @@ class WebViewManager(
         webView.webViewClient = AgreyFlixWebViewClient()
         webView.webChromeClient = AgreyFlixWebChromeClient()
 
+        // Register native JavaScript Interface for seamless local library play sessions
+        webView.addJavascriptInterface(
+            MediaBridge(activity, MediaAccessManager(activity), PermissionManager(activity)),
+            "AgreyFlixAndroid"
+        )
+
         // Load the production web app
         loadDefaultUrl()
     }
@@ -111,6 +120,38 @@ class WebViewManager(
 
     // Custom WebViewClient to control URL Loading & Deep Linking
     private inner class AgreyFlixWebViewClient : WebViewClient() {
+
+        override fun shouldInterceptRequest(
+            view: WebView?,
+            request: WebResourceRequest?
+        ): WebResourceResponse? {
+            val url = request?.url ?: return null
+            if (url.host == "local.agreyflix.app") {
+                val path = url.path
+                if (path == "/media/video" || path == "/media/audio") {
+                    val idStr = url.getQueryParameter("id")
+                    if (idStr != null) {
+                        try {
+                            val id = idStr.toLong()
+                            val baseUri = if (path == "/media/video") {
+                                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                            } else {
+                                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                            }
+                            val contentUri = ContentUris.withAppendedId(baseUri, id)
+                            val inputStream = activity.contentResolver.openInputStream(contentUri)
+                            if (inputStream != null) {
+                                val mimeType = if (path == "/media/video") "video/*" else "audio/*"
+                                return WebResourceResponse(mimeType, "UTF-8", inputStream)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("WebViewManager", "Failed to stream media: $idStr", e)
+                        }
+                    }
+                }
+            }
+            return super.shouldInterceptRequest(view, request)
+        }
 
         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
             val url = request?.url ?: return false

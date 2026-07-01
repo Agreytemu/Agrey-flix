@@ -9,6 +9,72 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
+// IndexedDB Persistence Layer to store live File/Blob objects persistently on the client-side
+const DB_NAME = 'agreyflix_local_media_db';
+const STORE_NAME = 'media_files';
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function saveMediaItemsToDB(items) {
+  return initDB().then((db) => {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      
+      for (const item of items) {
+        // Strip URLs to prevent memory/revocation leak, they are re-created on active play sessions
+        const cleanItem = { ...item };
+        if (cleanItem.url) delete cleanItem.url;
+        store.put(cleanItem);
+      }
+      
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = (e) => reject(e.target.error);
+    });
+  });
+}
+
+function getMediaItemsFromDB() {
+  return initDB().then((db) => {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }).catch(err => {
+    console.error("IndexedDB error:", err);
+    return [];
+  });
+}
+
+function clearMediaDB() {
+  return initDB().then((db) => {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      store.clear();
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = (e) => reject(e.target.error);
+    });
+  }).catch(err => {
+    console.error("IndexedDB clear error:", err);
+  });
+}
+
 export default function LocalLibraryPage() {
   const navigate = useNavigate();
   // Permission States: 'prompt', 'granted', 'denied'
@@ -66,15 +132,78 @@ export default function LocalLibraryPage() {
   const animationFrameRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
 
-  // Load previously cached metadata (file references cannot be stored as serialized files, but we preserve metadata lists!)
-  useEffect(() => {
-    const cachedVideos = localStorage.getItem('agreyflix_local_videos_metadata');
-    const cachedMusic = localStorage.getItem('agreyflix_local_music_metadata');
-    if (cachedVideos) {
-      try { setLocalVideos(JSON.parse(cachedVideos)); } catch (e) { console.error(e); }
+  const loadNativeMedia = () => {
+    if (typeof window !== 'undefined' && window.AgreyFlixAndroid) {
+      try {
+        const videosJson = window.AgreyFlixAndroid.getLocalVideos();
+        const musicJson = window.AgreyFlixAndroid.getLocalMusic();
+        
+        const videos = JSON.parse(videosJson || '[]');
+        const music = JSON.parse(musicJson || '[]');
+        
+        setLocalVideos(videos);
+        setLocalMusic(music);
+        
+        // Cache native items metadata
+        const vMetadata = videos.map(({ file, ...rest }) => rest);
+        const mMetadata = music.map(({ file, ...rest }) => rest);
+        localStorage.setItem('agreyflix_local_videos_metadata', JSON.stringify(vMetadata));
+        localStorage.setItem('agreyflix_local_music_metadata', JSON.stringify(mMetadata));
+        
+        // Also cache actual elements to IndexedDB
+        saveMediaItemsToDB([...videos, ...music]).catch(err => console.error("Error caching native files:", err));
+      } catch (err) {
+        console.error("Failed to parse native media:", err);
+      }
     }
-    if (cachedMusic) {
-      try { setLocalMusic(JSON.parse(cachedMusic)); } catch (e) { console.error(e); }
+  };
+
+  // Register Android callback globally
+  useEffect(() => {
+    window.onAndroidPermissionResult = (isGranted) => {
+      if (isGranted === 'true' || isGranted === true) {
+        setPermissionStatus('granted');
+        localStorage.setItem('agreyflix_media_permission_granted', 'granted');
+        loadNativeMedia();
+      } else {
+        setPermissionStatus('denied');
+        localStorage.setItem('agreyflix_media_permission_granted', 'denied');
+      }
+    };
+    return () => {
+      delete window.onAndroidPermissionResult;
+    };
+  }, []);
+
+  // Load previously cached media from IndexedDB or query from native Android MediaStore on startup
+  useEffect(() => {
+    const isAndroid = navigator.userAgent.includes("AgreyFlixAndroidApp");
+    if (isAndroid && window.AgreyFlixAndroid) {
+      const status = window.AgreyFlixAndroid.checkPermissions();
+      setPermissionStatus(status);
+      localStorage.setItem('agreyflix_media_permission_granted', status);
+      if (status === 'granted') {
+        loadNativeMedia();
+      }
+    } else {
+      getMediaItemsFromDB().then((allMedia) => {
+        if (allMedia && allMedia.length > 0) {
+          const videos = allMedia.filter(m => m.id.startsWith('vid_'));
+          const music = allMedia.filter(m => m.id.startsWith('aud_'));
+          setLocalVideos(videos);
+          setLocalMusic(music);
+        } else {
+          // Fallback to legacy metadata if IndexedDB is empty
+          const cachedVideos = localStorage.getItem('agreyflix_local_videos_metadata');
+          const cachedMusic = localStorage.getItem('agreyflix_local_music_metadata');
+          if (cachedVideos) {
+            try { setLocalVideos(JSON.parse(cachedVideos)); } catch (e) { console.error(e); }
+          }
+          if (cachedMusic) {
+            try { setLocalMusic(JSON.parse(cachedMusic)); } catch (e) { console.error(e); }
+          }
+        }
+      });
     }
   }, []);
 
@@ -217,6 +346,8 @@ export default function LocalLibraryPage() {
       // Cache metadata (serialize without live file object)
       const serializable = merged.map(({ file, ...rest }) => rest);
       localStorage.setItem('agreyflix_local_videos_metadata', JSON.stringify(serializable));
+      // Save entire merged list with File objects to IndexedDB
+      saveMediaItemsToDB(merged).catch(err => console.error("Error saving videos to DB:", err));
       return merged;
     });
 
@@ -226,6 +357,8 @@ export default function LocalLibraryPage() {
       );
       const serializable = merged.map(({ file, ...rest }) => rest);
       localStorage.setItem('agreyflix_local_music_metadata', JSON.stringify(serializable));
+      // Save entire merged list with File objects to IndexedDB
+      saveMediaItemsToDB(merged).catch(err => console.error("Error saving music to DB:", err));
       return merged;
     });
 
@@ -309,8 +442,12 @@ export default function LocalLibraryPage() {
 
   // Android-style permission acceptance
   const grantPermission = () => {
-    localStorage.setItem('agreyflix_media_permission_granted', 'granted');
-    setPermissionStatus('granted');
+    if (typeof window !== 'undefined' && window.AgreyFlixAndroid) {
+      window.AgreyFlixAndroid.requestPermissions();
+    } else {
+      localStorage.setItem('agreyflix_media_permission_granted', 'granted');
+      setPermissionStatus('granted');
+    }
   };
 
   const denyPermission = () => {
@@ -319,8 +456,12 @@ export default function LocalLibraryPage() {
   };
 
   const resetPermission = () => {
-    localStorage.removeItem('agreyflix_media_permission_granted');
-    setPermissionStatus('prompt');
+    if (typeof window !== 'undefined' && window.AgreyFlixAndroid) {
+      window.AgreyFlixAndroid.requestPermissions();
+    } else {
+      localStorage.removeItem('agreyflix_media_permission_granted');
+      setPermissionStatus('prompt');
+    }
   };
 
   // Add Item to Recently Played list
@@ -351,6 +492,7 @@ export default function LocalLibraryPage() {
       localStorage.removeItem('agreyflix_local_videos_metadata');
       localStorage.removeItem('agreyflix_local_music_metadata');
       localStorage.removeItem('agreyflix_local_recently_played');
+      clearMediaDB();
     }
   };
 
@@ -358,7 +500,7 @@ export default function LocalLibraryPage() {
   const handlePlayVideo = (videoItem) => {
     // Check if live file is attached. If not (e.g. loaded from localStorage cache on reload), 
     // prompt user to browse/select files to authorize browser reader.
-    if (!videoItem.file) {
+    if (!videoItem.file && !videoItem.isNative) {
       alert(`⚠️ To play "${videoItem.fullName}", please scan your device storage again using the "Scan Media" button to authorize security permissions.`);
       return;
     }
@@ -369,7 +511,7 @@ export default function LocalLibraryPage() {
       setIsAudioPlaying(false);
     }
 
-    const objectUrl = URL.createObjectURL(videoItem.file);
+    const objectUrl = videoItem.isNative ? videoItem.url : URL.createObjectURL(videoItem.file);
     setCurrentVideo({
       ...videoItem,
       url: objectUrl
@@ -382,7 +524,7 @@ export default function LocalLibraryPage() {
 
   // Play Audio file
   const handlePlayAudio = (audioItem) => {
-    if (!audioItem.file) {
+    if (!audioItem.file && !audioItem.isNative) {
       alert(`⚠️ To play "${audioItem.fullName}", please scan your device storage again using the "Scan Media" button to authorize security permissions.`);
       return;
     }
@@ -393,10 +535,10 @@ export default function LocalLibraryPage() {
       setIsVideoPlaying(false);
     }
 
-    const objectUrl = URL.createObjectURL(audioItem.file);
+    const objectUrl = audioItem.isNative ? audioItem.url : URL.createObjectURL(audioItem.file);
     
     // Revoke old audio object url if playing
-    if (currentAudio?.url) {
+    if (currentAudio?.url && !currentAudio.isNative) {
       URL.revokeObjectURL(currentAudio.url);
     }
 
@@ -753,21 +895,33 @@ export default function LocalLibraryPage() {
           {/* Library Controls / Media Actions */}
           {permissionStatus === 'granted' && (
             <div className="flex flex-wrap items-center gap-3">
-              <button 
-                onClick={() => folderInputRef.current?.click()}
-                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 border border-white/10 transition-all cursor-pointer"
-                title="Select a whole folder to index"
-              >
-                <FaFolderOpen className="text-red-500 text-sm" /> Select Folder
-              </button>
-              
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-lg shadow-red-600/20 cursor-pointer"
-                title="Select multiple files to play"
-              >
-                <FaFolder className="text-sm" /> Scan Media Files
-              </button>
+              {isAndroidApp ? (
+                <button 
+                  onClick={loadNativeMedia}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-lg shadow-red-600/20 cursor-pointer"
+                  title="Scan Media from Device Storage"
+                >
+                  <FaSync className="text-sm" /> Refresh Media Store
+                </button>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => folderInputRef.current?.click()}
+                    className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 border border-white/10 transition-all cursor-pointer"
+                    title="Select a whole folder to index"
+                  >
+                    <FaFolderOpen className="text-red-500 text-sm" /> Select Folder
+                  </button>
+                  
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-lg shadow-red-600/20 cursor-pointer"
+                    title="Select multiple files to play"
+                  >
+                    <FaFolder className="text-sm" /> Scan Media Files
+                  </button>
+                </>
+              )}
 
               {(localVideos.length > 0 || localMusic.length > 0) && (
                 <button 

@@ -164,7 +164,7 @@ STRICT STYLE AND FORMATTING RULES:
           const fileBuffer = fs.readFileSync(filePath);
           const hash = crypto.createHash("sha256");
           hash.update(fileBuffer);
-          actualSha = `sha256-${hash.digest("hex").slice(0, 16)}...`;
+          actualSha = `sha256-${hash.digest("hex")}`;
         } catch (hashErr) {
           console.error("Failed to calculate SHA256:", hashErr);
         }
