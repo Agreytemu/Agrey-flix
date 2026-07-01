@@ -9,7 +9,7 @@
       "destination": "/sw.js"
     },
     {
-      "source": "/((?!sw\\.js|manifest\\.json|robots\\.txt|sitemap\\.xml|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.ico|.*\\.txt|.*\\.xml|.*\\.html).*)",
+      "source": "/((?!sw\\.js|manifest\\.json|robots\\.txt|sitemap\\.xml|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.ico|.*\\.txt|.*\\.xml|.*\\.html|.*\\.apk).*)",
       "destination": "/index.html"
     }
   ],
@@ -41,6 +41,19 @@
         {
           "key": "Feature-Policy",
           "value": "fullscreen *; picture-in-picture *; autoplay *; encrypted-media *"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.apk)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.android.package-archive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
         }
       ]
     }
