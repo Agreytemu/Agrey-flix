@@ -14,21 +14,31 @@ export default function AppDownloadPage() {
   const [apkList, setApkList] = useState([]);
   const [selectedApk, setSelectedApk] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('/api/apps/apk-list')
+    // Use the static manifest we added to public/apks.json to avoid server function issues
+    fetch('/apks.json')
       .then(res => {
-        if (!res.ok) throw new Error("Server responded with error status");
+        if (!res.ok) throw new Error(`fetch error: ${res.status}`);
         return res.json();
       })
       .then(data => {
-        if (data.success && data.apks && data.apks.length > 0) {
-          setApkList(data.apks);
-          setSelectedApk(data.apks[0]); // Default to latest version
+        // manifest is an array of apk objects
+        const list = Array.isArray(data) ? data : (data.apks || []);
+        if (list && list.length) {
+          setApkList(list);
+          setSelectedApk(list[0]); // Default to latest (first) entry
+        } else {
+          setApkList([]);
+          setSelectedApk(null);
         }
       })
       .catch(err => {
-        console.error("Error loading dynamic APK list:", err);
+        console.error('Error loading APK manifest:', err);
+        setError(err.message || 'Failed to load APK manifest');
+        setApkList([]);
+        setSelectedApk(null);
       })
       .finally(() => {
         setLoading(false);
@@ -82,23 +92,49 @@ export default function AppDownloadPage() {
     { title: "Double-Tap Back Lock", desc: "Prevents accidental application closing with intuitive prompt verification before exit." }
   ];
 
-  const handleApkDownload = () => {
-    setDownloadStarted(true);
-
-    // Point to the selected dynamic APK path inside the public folder
+  const triggerDownload = (href, filename) => {
     const link = document.createElement('a');
-    link.href = appUrl;
-    link.download = appFilename;
+    link.href = href;
+    link.download = filename || 'app.apk';
+    link.rel = 'noopener noreferrer';
+    // For safety ensure we're not navigating away without opening new tab in browsers that block downloads
     document.body.appendChild(link);
     link.click();
-    
-    // Cleanup DOM reference
     document.body.removeChild(link);
+  };
 
-    // Reset indicator after 5 seconds
-    setTimeout(() => {
-      setDownloadStarted(false);
-    }, 5000);
+  const handleApkDownload = async () => {
+    if (!selectedApk) return;
+    setDownloadStarted(true);
+    const primary = selectedApk.url || selectedApk.raw;
+    const fallback = selectedApk.raw && selectedApk.raw !== primary ? selectedApk.raw : null;
+
+    try {
+      // Try HEAD first to confirm availability (keeps UX smoother if primary is blocked)
+      try {
+        const head = await fetch(primary, { method: 'HEAD' });
+        if (head.ok) {
+          triggerDownload(primary, selectedApk.filename);
+          return;
+        }
+      } catch (e) {
+        // HEAD failed — fall through to try direct download or fallback
+        console.warn('HEAD check failed, attempting direct download', e);
+      }
+
+      // If HEAD failed or wasn't OK, try direct download link
+      try {
+        triggerDownload(primary, selectedApk.filename);
+      } catch (e) {
+        console.warn('Direct primary download failed, trying fallback', e);
+        if (fallback) triggerDownload(fallback, selectedApk.filename);
+      }
+    } catch (err) {
+      console.error('Download failed, falling back to raw if available:', err);
+      if (fallback) triggerDownload(fallback, selectedApk.filename);
+    } finally {
+      setTimeout(() => setDownloadStarted(false), 4000);
+    }
   };
 
   return (
@@ -113,7 +149,7 @@ export default function AppDownloadPage() {
       {/* Navigation Link to Home */}
       <button 
         onClick={() => navigate('/home')} 
-        className="mb-8 flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer inline-flex outline-none"
+        className="mb-8 flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-wider transition-all"
       >
         <FaArrowLeft /> Back to Home
       </button>
@@ -165,7 +201,7 @@ export default function AppDownloadPage() {
                 <>
                   <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
                     {/* Custom Vector Launcher Art */}
-                    <div className="w-20 h-20 bg-gradient-to-br from-red-500 via-red-600 to-red-800 rounded-3xl flex items-center justify-center shadow-2xl shadow-red-500/30 shrink-0 transform group-hover:scale-105 transition-transform">
+                    <div className="w-20 h-20 bg-gradient-to-br from-red-500 via-red-600 to-red-800 rounded-3xl flex items-center justify-center shadow-2xl shadow-red-500/30 shrink-0 transform">
                       <FaAndroid className="text-white text-5xl animate-pulse" />
                     </div>
 
@@ -238,11 +274,18 @@ export default function AppDownloadPage() {
                       {downloadStarted ? "Downloading App..." : "Download Official APK"}
                     </button>
 
-                    <div className="flex flex-col items-center sm:items-end text-[10px] font-mono text-zinc-500">
-                      <span className="flex items-center gap-1 text-emerald-500 font-semibold uppercase tracking-wider mb-0.5">
-                        <FaShieldAlt /> 100% Secure File
-                      </span>
-                      <span className="truncate max-w-[200px]">{appSHA}</span>
+                    <div className="flex items-center gap-3">
+                      {/* Raw link always visible as fallback */}
+                      {selectedApk && selectedApk.raw && (
+                        <a href={selectedApk.raw} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 underline">Raw</a>
+                      )}
+
+                      <div className="flex flex-col items-center sm:items-end text-[10px] font-mono text-zinc-500">
+                        <span className="flex items-center gap-1 text-emerald-500 font-semibold uppercase tracking-wider mb-0.5">
+                          <FaShieldAlt /> 100% Secure File
+                        </span>
+                        <span className="truncate max-w-[200px]">{appSHA}</span>
+                      </div>
                     </div>
                   </div>
                 </>
@@ -306,7 +349,7 @@ export default function AppDownloadPage() {
                 <FaInfoCircle className="text-red-500" /> Need Help?
               </h4>
               <p className="text-zinc-500 text-xs leading-relaxed font-semibold">
-                If the application throws an installation error, verify that you have downloaded the complete file size. If the download completes but fails to install, try deleting any legacy versions of AgreyFlix from your device first.
+                If the application throws an installation error, verify that you have downloaded the complete file size. If the download completes but fails to install, try deleting any legacy versions and re-installing.
               </p>
               <button 
                 onClick={() => navigate('/contact')}
