@@ -9,7 +9,7 @@
       "destination": "/sw.js"
     },
     {
-      "source": "/((?!sw\\.js|manifest\\.json|robots\\.txt|sitemap\\.xml|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.ico|.*\\.txt|.*\\.xml|.*\\.html|.*\\.apk).*)",
+      "source": "/((?!api\/.*|sw\\.js|manifest\\.json|robots\\.txt|sitemap\\.xml|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.ico|.*\\.txt|.*\\.xml|.*\\.html|.*\\.apk).*)",
       "destination": "/index.html"
     }
   ],
@@ -32,19 +32,6 @@
       ]
     },
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Permissions-Policy",
-          "value": "fullscreen=*, picture-in-picture=*, autoplay=*, encrypted-media=*, screen-wake-lock=*"
-        },
-        {
-          "key": "Feature-Policy",
-          "value": "fullscreen *; picture-in-picture *; autoplay *; encrypted-media *"
-        }
-      ]
-    },
-    {
       "source": "/(.*\\.apk)",
       "headers": [
         {
@@ -54,6 +41,19 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Permissions-Policy",
+          "value": "fullscreen=*, picture-in-picture=*, autoplay=*, encrypted-media=*, screen-wake-lock=*"
+        },
+        {
+          "key": "Feature-Policy",
+          "value": "fullscreen *; picture-in-picture *; autoplay *; encrypted-media *"
         }
       ]
     }
